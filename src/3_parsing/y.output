@@ -1,42 +1,569 @@
+Nonterminals useless in grammar
 
-state 0
-	$accept : _program $end 
-
-	ID  shift 3
-	.  error
-
-	program  goto 1
-	exp  goto 2
-
-state 1
-	$accept :  program_$end 
-
-	$end  accept
-	.  error
+    decs
 
 
-state 2
-	program :  exp_    (1)
+Terminals unused in grammar
 
-	.  reduce 1
+    STRING
+    SEMICOLON
+    LBRACK
+    RBRACK
+    DOT
+    PLUS
+    MINUS
+    TIMES
+    DIVIDE
+    NEQ
+    LT
+    LE
+    GT
+    GE
+    AND
+    OR
+    IF
+    THEN
+    ELSE
+    WHILE
+    FOR
+    TO
+    DO
+    BREAK
+    NIL
 
 
-state 3
-	exp :  ID_    (2)
+Rules useless in grammar
 
-	.  reduce 2
+   20 decs: dec
+   21     | ε
 
 
-45/3000 terminals, 2/1000 nonterminals
-3/2000 grammar rules, 4/5000 states
-0 shift/reduce, 0 reduce/reduce conflicts reported
-3/1400 working sets used
-memory: states,etc. 30/40000, parser 1/70000
-3/600 distinct lookahead sets
-0 extra closures
-1 shift entries, 1 exceptions
-2 goto entries
-0 entries saved by goto default
-Optimizer space used: input 6/40000, output 3/70000
-3 table entries, 0 zero
-maximum spread: 257, maximum offset: 257
+Grammar
+
+    0 $accept: prog $end
+
+    1 prog: let
+
+    2 dec: tydec
+    3    | vardec
+    4    | fundec
+
+    5 tydec: TYPE ID EQ ty
+
+    6 ty: ID
+    7   | RBRACE tyfields LBRACE
+    8   | ARRAY OF ID
+
+    9 tyfields: ID COLON ID tyfields
+   10         | COMMA tyfields
+   11         | ε
+
+   12 vardec: VAR ID ASSIGN exp
+   13       | VAR ID COLON ID ASSIGN exp
+
+   14 fundec: FUNCTION ID RPAREN tyfields LPAREN EQ exp
+   15       | FUNCTION ID RPAREN tyfields COLON ID LPAREN EQ exp
+
+   16 let: LET dec IN exp END
+   17    | ε
+
+   18 exp: ID
+   19    | INT
+
+
+Terminals, with rules where they appear
+
+    $end (0) 0
+    error (256)
+    ID <sval> (258) 5 6 8 9 12 13 14 15 18
+    STRING <sval> (259)
+    INT <ival> (260) 19
+    COMMA (261) 10
+    COLON (262) 9 13 15
+    SEMICOLON (263)
+    LPAREN (264) 14 15
+    RPAREN (265) 14 15
+    LBRACK (266)
+    RBRACK (267)
+    LBRACE (268) 7
+    RBRACE (269) 7
+    DOT (270)
+    PLUS (271)
+    MINUS (272)
+    TIMES (273)
+    DIVIDE (274)
+    EQ (275) 5 14 15
+    NEQ (276)
+    LT (277)
+    LE (278)
+    GT (279)
+    GE (280)
+    AND (281)
+    OR (282)
+    ASSIGN (283) 12 13
+    ARRAY (284) 8
+    IF (285)
+    THEN (286)
+    ELSE (287)
+    WHILE (288)
+    FOR (289)
+    TO (290)
+    DO (291)
+    LET (292) 16
+    IN (293) 16
+    END (294) 16
+    OF (295) 8
+    BREAK (296)
+    NIL (297)
+    FUNCTION (298) 14 15
+    VAR (299) 12 13
+    TYPE (300) 5
+
+
+Nonterminals, with rules where they appear
+
+    $accept (46)
+        on left: 0
+    prog (47)
+        on left: 1
+        on right: 0
+    dec (48)
+        on left: 2 3 4
+        on right: 16
+    tydec (49)
+        on left: 5
+        on right: 2
+    ty (50)
+        on left: 6 7 8
+        on right: 5
+    tyfields (51)
+        on left: 9 10 11
+        on right: 7 9 10 14 15
+    vardec (52)
+        on left: 12 13
+        on right: 3
+    fundec (53)
+        on left: 14 15
+        on right: 4
+    let (54)
+        on left: 16 17
+        on right: 1
+    exp (55)
+        on left: 18 19
+        on right: 12 13 14 15 16
+
+
+State 0
+
+    0 $accept: • prog $end
+
+    LET  shift, and go to state 1
+
+    $default  reduce using rule 17 (let)
+
+    prog  go to state 2
+    let   go to state 3
+
+
+State 1
+
+   16 let: LET • dec IN exp END
+
+    FUNCTION  shift, and go to state 4
+    VAR       shift, and go to state 5
+    TYPE      shift, and go to state 6
+
+    dec     go to state 7
+    tydec   go to state 8
+    vardec  go to state 9
+    fundec  go to state 10
+
+
+State 2
+
+    0 $accept: prog • $end
+
+    $end  shift, and go to state 11
+
+
+State 3
+
+    1 prog: let •
+
+    $default  reduce using rule 1 (prog)
+
+
+State 4
+
+   14 fundec: FUNCTION • ID RPAREN tyfields LPAREN EQ exp
+   15       | FUNCTION • ID RPAREN tyfields COLON ID LPAREN EQ exp
+
+    ID  shift, and go to state 12
+
+
+State 5
+
+   12 vardec: VAR • ID ASSIGN exp
+   13       | VAR • ID COLON ID ASSIGN exp
+
+    ID  shift, and go to state 13
+
+
+State 6
+
+    5 tydec: TYPE • ID EQ ty
+
+    ID  shift, and go to state 14
+
+
+State 7
+
+   16 let: LET dec • IN exp END
+
+    IN  shift, and go to state 15
+
+
+State 8
+
+    2 dec: tydec •
+
+    $default  reduce using rule 2 (dec)
+
+
+State 9
+
+    3 dec: vardec •
+
+    $default  reduce using rule 3 (dec)
+
+
+State 10
+
+    4 dec: fundec •
+
+    $default  reduce using rule 4 (dec)
+
+
+State 11
+
+    0 $accept: prog $end •
+
+    $default  accept
+
+
+State 12
+
+   14 fundec: FUNCTION ID • RPAREN tyfields LPAREN EQ exp
+   15       | FUNCTION ID • RPAREN tyfields COLON ID LPAREN EQ exp
+
+    RPAREN  shift, and go to state 16
+
+
+State 13
+
+   12 vardec: VAR ID • ASSIGN exp
+   13       | VAR ID • COLON ID ASSIGN exp
+
+    COLON   shift, and go to state 17
+    ASSIGN  shift, and go to state 18
+
+
+State 14
+
+    5 tydec: TYPE ID • EQ ty
+
+    EQ  shift, and go to state 19
+
+
+State 15
+
+   16 let: LET dec IN • exp END
+
+    ID   shift, and go to state 20
+    INT  shift, and go to state 21
+
+    exp  go to state 22
+
+
+State 16
+
+   14 fundec: FUNCTION ID RPAREN • tyfields LPAREN EQ exp
+   15       | FUNCTION ID RPAREN • tyfields COLON ID LPAREN EQ exp
+
+    ID     shift, and go to state 23
+    COMMA  shift, and go to state 24
+
+    $default  reduce using rule 11 (tyfields)
+
+    tyfields  go to state 25
+
+
+State 17
+
+   13 vardec: VAR ID COLON • ID ASSIGN exp
+
+    ID  shift, and go to state 26
+
+
+State 18
+
+   12 vardec: VAR ID ASSIGN • exp
+
+    ID   shift, and go to state 20
+    INT  shift, and go to state 21
+
+    exp  go to state 27
+
+
+State 19
+
+    5 tydec: TYPE ID EQ • ty
+
+    ID      shift, and go to state 28
+    RBRACE  shift, and go to state 29
+    ARRAY   shift, and go to state 30
+
+    ty  go to state 31
+
+
+State 20
+
+   18 exp: ID •
+
+    $default  reduce using rule 18 (exp)
+
+
+State 21
+
+   19 exp: INT •
+
+    $default  reduce using rule 19 (exp)
+
+
+State 22
+
+   16 let: LET dec IN exp • END
+
+    END  shift, and go to state 32
+
+
+State 23
+
+    9 tyfields: ID • COLON ID tyfields
+
+    COLON  shift, and go to state 33
+
+
+State 24
+
+   10 tyfields: COMMA • tyfields
+
+    ID     shift, and go to state 23
+    COMMA  shift, and go to state 24
+
+    $default  reduce using rule 11 (tyfields)
+
+    tyfields  go to state 34
+
+
+State 25
+
+   14 fundec: FUNCTION ID RPAREN tyfields • LPAREN EQ exp
+   15       | FUNCTION ID RPAREN tyfields • COLON ID LPAREN EQ exp
+
+    COLON   shift, and go to state 35
+    LPAREN  shift, and go to state 36
+
+
+State 26
+
+   13 vardec: VAR ID COLON ID • ASSIGN exp
+
+    ASSIGN  shift, and go to state 37
+
+
+State 27
+
+   12 vardec: VAR ID ASSIGN exp •
+
+    $default  reduce using rule 12 (vardec)
+
+
+State 28
+
+    6 ty: ID •
+
+    $default  reduce using rule 6 (ty)
+
+
+State 29
+
+    7 ty: RBRACE • tyfields LBRACE
+
+    ID     shift, and go to state 23
+    COMMA  shift, and go to state 24
+
+    $default  reduce using rule 11 (tyfields)
+
+    tyfields  go to state 38
+
+
+State 30
+
+    8 ty: ARRAY • OF ID
+
+    OF  shift, and go to state 39
+
+
+State 31
+
+    5 tydec: TYPE ID EQ ty •
+
+    $default  reduce using rule 5 (tydec)
+
+
+State 32
+
+   16 let: LET dec IN exp END •
+
+    $default  reduce using rule 16 (let)
+
+
+State 33
+
+    9 tyfields: ID COLON • ID tyfields
+
+    ID  shift, and go to state 40
+
+
+State 34
+
+   10 tyfields: COMMA tyfields •
+
+    $default  reduce using rule 10 (tyfields)
+
+
+State 35
+
+   15 fundec: FUNCTION ID RPAREN tyfields COLON • ID LPAREN EQ exp
+
+    ID  shift, and go to state 41
+
+
+State 36
+
+   14 fundec: FUNCTION ID RPAREN tyfields LPAREN • EQ exp
+
+    EQ  shift, and go to state 42
+
+
+State 37
+
+   13 vardec: VAR ID COLON ID ASSIGN • exp
+
+    ID   shift, and go to state 20
+    INT  shift, and go to state 21
+
+    exp  go to state 43
+
+
+State 38
+
+    7 ty: RBRACE tyfields • LBRACE
+
+    LBRACE  shift, and go to state 44
+
+
+State 39
+
+    8 ty: ARRAY OF • ID
+
+    ID  shift, and go to state 45
+
+
+State 40
+
+    9 tyfields: ID COLON ID • tyfields
+
+    ID     shift, and go to state 23
+    COMMA  shift, and go to state 24
+
+    $default  reduce using rule 11 (tyfields)
+
+    tyfields  go to state 46
+
+
+State 41
+
+   15 fundec: FUNCTION ID RPAREN tyfields COLON ID • LPAREN EQ exp
+
+    LPAREN  shift, and go to state 47
+
+
+State 42
+
+   14 fundec: FUNCTION ID RPAREN tyfields LPAREN EQ • exp
+
+    ID   shift, and go to state 20
+    INT  shift, and go to state 21
+
+    exp  go to state 48
+
+
+State 43
+
+   13 vardec: VAR ID COLON ID ASSIGN exp •
+
+    $default  reduce using rule 13 (vardec)
+
+
+State 44
+
+    7 ty: RBRACE tyfields LBRACE •
+
+    $default  reduce using rule 7 (ty)
+
+
+State 45
+
+    8 ty: ARRAY OF ID •
+
+    $default  reduce using rule 8 (ty)
+
+
+State 46
+
+    9 tyfields: ID COLON ID tyfields •
+
+    $default  reduce using rule 9 (tyfields)
+
+
+State 47
+
+   15 fundec: FUNCTION ID RPAREN tyfields COLON ID LPAREN • EQ exp
+
+    EQ  shift, and go to state 49
+
+
+State 48
+
+   14 fundec: FUNCTION ID RPAREN tyfields LPAREN EQ exp •
+
+    $default  reduce using rule 14 (fundec)
+
+
+State 49
+
+   15 fundec: FUNCTION ID RPAREN tyfields COLON ID LPAREN EQ • exp
+
+    ID   shift, and go to state 20
+    INT  shift, and go to state 21
+
+    exp  go to state 50
+
+
+State 50
+
+   15 fundec: FUNCTION ID RPAREN tyfields COLON ID LPAREN EQ exp •
+
+    $default  reduce using rule 15 (fundec)

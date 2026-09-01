@@ -1,7 +1,8 @@
 #include <assert.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
 typedef char *string;
-typedef char bool;
 
 #define TRUE 1
 #define FALSE 0

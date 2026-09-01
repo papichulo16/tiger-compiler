@@ -11,6 +11,7 @@ void yyerror(char *s)
 }
 %}
 
+%debug
 
 %union {
 	int pos;
@@ -30,14 +31,54 @@ void yyerror(char *s)
   BREAK NIL
   FUNCTION VAR TYPE 
 
-%start program
+%start prog
 
 %%
 
-program:	exp
+prog
+    :	let
 
-exp:   ID
+decs
+    : dec
+    |
+    ;
 
+dec
+    : tydec
+    | vardec
+    | fundec
+    ;
 
+tydec
+    : TYPE ID EQ ty
+ty
+    : ID
+    | RBRACE tyfields LBRACE
+    | ARRAY OF ID
+    ;
+tyfields
+    : ID COLON ID tyfields
+    | COMMA tyfields
+    | 
+    ;
 
-	
+vardec
+    : VAR ID ASSIGN exp
+    | VAR ID COLON ID ASSIGN exp
+    ;
+
+fundec
+    : FUNCTION ID RPAREN tyfields LPAREN EQ exp
+    | FUNCTION ID RPAREN tyfields COLON ID LPAREN EQ exp
+    ;
+
+let
+    : LET dec IN exp END
+    |
+    ;
+
+exp
+    : ID
+    | INT
+    ;
+
