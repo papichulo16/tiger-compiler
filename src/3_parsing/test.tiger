@@ -1,5 +1,12 @@
+
 let
-  var N := 8
-  type balls = { a: int, b: balls }
-in end
+
+  type balls = { a: int, b: float }
+
+in 
+
+  if 9 < 2 then
+    x[5] := (10 + (9 + 3))
+
+end
 

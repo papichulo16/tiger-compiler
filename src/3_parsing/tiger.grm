@@ -38,8 +38,12 @@ void yyerror(char *s)
 prog
     :	let
 
+let
+    : LET decs IN exps END
+    ;
+
 decs
-    : dec
+    : decs dec
     |
     ;
 
@@ -53,7 +57,7 @@ tydec
     : TYPE ID EQ ty
 ty
     : ID
-    | RBRACE tyfields LBRACE
+    | LBRACE tyfields RBRACE
     | ARRAY OF ID
     ;
 tyfields
@@ -68,17 +72,43 @@ vardec
     ;
 
 fundec
-    : FUNCTION ID RPAREN tyfields LPAREN EQ exp
-    | FUNCTION ID RPAREN tyfields COLON ID LPAREN EQ exp
+    : FUNCTION ID LPAREN tyfields RPAREN EQ exp
+    | FUNCTION ID LPAREN tyfields COLON ID RPAREN EQ exp
     ;
 
-let
-    : LET dec IN exp END
-    |
+lvalue
+    : ID
+    | lvalue DOT ID
+    | lvalue LBRACK exp RBRACK
+    ;
+
+math
+    : LPAREN exp RPAREN
+    | exp PLUS exp
+    | exp MINUS exp
+    | exp TIMES exp
+    | exp DIVIDE exp
+    ;
+
+bool
+    : EQ
+    | NEQ
+    | LT
+    | LE
+    | GT
+    | GE
+    ; 
+
+exps
+    : lvalue ASSIGN exp
+    | IF exp bool exp THEN exps ELSE exps
+    | IF exp bool exp THEN exps
     ;
 
 exp
-    : ID
-    | INT
+    : math
+    | lvalue
+    | INT 
+    | STRING
     ;
 

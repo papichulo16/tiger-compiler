@@ -39,10 +39,10 @@ COMMENT [/][\*][^"]*[\*][/]
 ";"	 {adjust(); return SEMICOLON;}
 "("	 {adjust(); return LPAREN;}
 ")"	 {adjust(); return RPAREN;}
-"["	 {adjust(); return RBRACK;}
+"["	 {adjust(); return LBRACK;}
 "]"	 {adjust(); return RBRACK;}
-"{"	 {adjust(); return RBRACE;}
-"}"	 {adjust(); return LBRACE;}
+"{"	 {adjust(); return LBRACE;}
+"}"	 {adjust(); return RBRACE;}
 
 "." {adjust(); return DOT;}
 "+" {adjust(); return PLUS;}
