@@ -26,7 +26,7 @@ void adjust(void)
 %option yylineno
 
 DIGITS [0-9]+
-IDENT [a-zA-Z][a-zA-Z0-9]*
+IDENT [a-zA-Z_][a-zA-Z0-9_]*
 STR ["][^"]*["]
 COMMENT [/][*]([^*]|[*][^/])*[*][/]
 
@@ -79,7 +79,7 @@ array {adjust(); return ARRAY;}
 if {adjust(); return IF;}
 then {adjust(); return THEN;}
 else {adjust(); return ELSE;}
-do {adjust(); return DO;}
+"do" {adjust(); return DO;}
 of {adjust(); return OF;}
 
 {STR} {adjust(); yylval.sval=strdup(yytext); return STRING;}

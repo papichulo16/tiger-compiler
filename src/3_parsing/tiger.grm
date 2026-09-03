@@ -45,7 +45,7 @@ void yyerror(char *s)
 %%
 
 prog
-    :	let
+    :	exp
 
 let
     : LET decs IN expseq END
@@ -77,8 +77,12 @@ tyfields
 
 vardec
     : VAR ID ASSIGN exp
-    | VAR ID ASSIGN ID LBRACK exp RBRACK OF exp
     | VAR ID COLON ID ASSIGN exp
+    ;
+
+arrdec
+    : ID LBRACK exp RBRACK OF exp 
+    | ID NIL
     ;
 
 fundec
@@ -87,9 +91,13 @@ fundec
     ;
 
 lvalue
-    : ID
-    | lvalue DOT ID
-    | lvalue LBRACK exp RBRACK
+    : ID lvalue_suffix
+    ;
+
+lvalue_suffix
+    : DOT ID lvalue_suffix
+    | LBRACK exp RBRACK lvalue_suffix
+    |
     ;
 
 fparams
@@ -131,6 +139,7 @@ exp
     | exp LE exp
     | exp GT exp
     | exp GE exp
+    | exp LT GT exp
     | exp PLUS exp
     | MINUS exp
     | exp MINUS exp
@@ -138,6 +147,7 @@ exp
     | exp DIVIDE exp
     | valess
     | lvalue
+    | arrdec
     | rec
     | let
     | NIL
