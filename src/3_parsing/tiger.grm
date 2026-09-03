@@ -3,11 +3,14 @@
 #include "util.h"
 #include "errormsg.h"
 
+extern int yylineno;
+extern char* yytext;
+
 int yylex(void); /* function prototype */
 
 void yyerror(char *s)
 {
- EM_error(EM_tokPos, "%s", s);
+ EM_error(EM_tokPos, "%s in line %d, near '%s'", s, yylineno, yytext);
 }
 %}
 
@@ -30,6 +33,12 @@ void yyerror(char *s)
   ARRAY IF THEN ELSE WHILE FOR TO DO LET IN END OF 
   BREAK NIL
   FUNCTION VAR TYPE 
+
+%left OR
+%left AND
+%left EQ NEQ LT LE GT GE
+%left PLUS MINUS
+%left TIMES DIVIDE
 
 %start prog
 
@@ -68,12 +77,13 @@ tyfields
 
 vardec
     : VAR ID ASSIGN exp
+    | VAR ID ASSIGN ID LBRACK exp RBRACK OF exp
     | VAR ID COLON ID ASSIGN exp
     ;
 
 fundec
-    : FUNCTION ID LPAREN tyfields RPAREN EQ expseq
-    | FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ expseq
+    : FUNCTION ID LPAREN tyfields RPAREN EQ exp
+    | FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ exp
     ;
 
 lvalue
@@ -82,32 +92,9 @@ lvalue
     | lvalue LBRACK exp RBRACK
     ;
 
-math
-    : LPAREN exp RPAREN
-    | exp PLUS exp 
-    | exp MINUS exp 
-    | exp TIMES exp
-    | exp DIVIDE exp
-    ;
-
-boolexp
-    : boolexp AND boolexp
-    | boolexp OR boolexp
-    | exp bool exp
-    ;
-
-bool
-    : EQ
-    | NEQ
-    | LT
-    | LE
-    | GT
-    | GE
-    ; 
-
 fparams
-    : COMMA fparams 
-    | IF boolexp THEN exp ELSE exp
+    : fparams COMMA fparams 
+    | IF exp THEN exp ELSE exp
     | exp
     |
     ;
@@ -115,25 +102,47 @@ fparams
 valess
     : ID LPAREN fparams RPAREN
     | lvalue ASSIGN exp
-    | IF boolexp THEN expseq ELSE expseq
-    | IF boolexp THEN expseq
-    | WHILE boolexp DO expseq
+    | IF exp THEN expseq ELSE expseq
+    | IF exp THEN expseq
+    | WHILE exp DO expseq
     | FOR ID ASSIGN exp TO exp DO expseq
     | BREAK
     ;
 
-expseq
-    : LPAREN expseq RPAREN
-    | expseq SEMICOLON expseq
-    | valess
+recpara
+    : ID EQ exp
+    | recpara COMMA recpara
     |
     ;
+rec
+    : ID LBRACE recpara RBRACE
 
+expseq
+    : exp
+    | expseq SEMICOLON exp
+    |
+    ;
 exp
-    : math
-    | ID LBRACK exp RBRACK OF exp
+    : exp OR exp
+    | exp AND exp
+    | exp EQ exp
+    | exp NEQ exp
+    | exp LT exp
+    | exp LE exp
+    | exp GT exp
+    | exp GE exp
+    | exp PLUS exp
+    | MINUS exp
+    | exp MINUS exp
+    | exp TIMES exp
+    | exp DIVIDE exp
+    | valess
     | lvalue
+    | rec
+    | let
+    | NIL
     | INT 
     | STRING
+    | LPAREN expseq RPAREN
     ;
 

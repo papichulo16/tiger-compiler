@@ -4,6 +4,8 @@
 #include "y.tab.h"
 #include "errormsg.h"
 
+extern int yylineno;
+
 int charPos=1;
 
 int yywrap(void)
@@ -20,6 +22,8 @@ void adjust(void)
 }
 
 %}
+
+%option yylineno
 
 DIGITS [0-9]+
 IDENT [a-zA-Z][a-zA-Z0-9]*
