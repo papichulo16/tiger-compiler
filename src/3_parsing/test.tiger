@@ -3,10 +3,31 @@ let
 
   type balls = { a: int, b: float }
 
+  /*
+  function printboard() =
+  (
+    for i := 0 to N-1
+      do (
+        for j := 0 to N-1
+          do print(if col[i]=j then " O" else " .");
+
+          print("\n")
+        );
+
+    print("\n")
+  )
+  */
 in 
 
-  if 9 < 2 then
+  if 9 < 2 | 2 = 3 then (
+
+    x[5] := (10 + (9 + 3));
     x[5] := (10 + (9 + 3))
+
+  ) else if 1 = 2 then x := 2
+  else x := 3;
+
+  balls()
 
 end
 

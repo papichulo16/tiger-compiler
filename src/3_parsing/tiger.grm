@@ -39,7 +39,7 @@ prog
     :	let
 
 let
-    : LET decs IN exps END
+    : LET decs IN expseq END
     ;
 
 decs
@@ -72,8 +72,8 @@ vardec
     ;
 
 fundec
-    : FUNCTION ID LPAREN tyfields RPAREN EQ exp
-    | FUNCTION ID LPAREN tyfields COLON ID RPAREN EQ exp
+    : FUNCTION ID LPAREN tyfields RPAREN EQ expseq
+    | FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ expseq
     ;
 
 lvalue
@@ -84,10 +84,16 @@ lvalue
 
 math
     : LPAREN exp RPAREN
-    | exp PLUS exp
-    | exp MINUS exp
+    | exp PLUS exp 
+    | exp MINUS exp 
     | exp TIMES exp
     | exp DIVIDE exp
+    ;
+
+boolexp
+    : boolexp AND boolexp
+    | boolexp OR boolexp
+    | exp bool exp
     ;
 
 bool
@@ -99,14 +105,33 @@ bool
     | GE
     ; 
 
-exps
-    : lvalue ASSIGN exp
-    | IF exp bool exp THEN exps ELSE exps
-    | IF exp bool exp THEN exps
+fparams
+    : COMMA fparams 
+    | IF boolexp THEN exp ELSE exp
+    | exp
+    |
+    ;
+
+valess
+    : ID LPAREN fparams RPAREN
+    | lvalue ASSIGN exp
+    | IF boolexp THEN expseq ELSE expseq
+    | IF boolexp THEN expseq
+    | WHILE boolexp DO expseq
+    | FOR ID ASSIGN exp TO exp DO expseq
+    | BREAK
+    ;
+
+expseq
+    : LPAREN expseq RPAREN
+    | expseq SEMICOLON expseq
+    | valess
+    |
     ;
 
 exp
     : math
+    | ID LBRACK exp RBRACK OF exp
     | lvalue
     | INT 
     | STRING

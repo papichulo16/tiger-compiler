@@ -1,22 +1,21 @@
 Terminals unused in grammar
 
-    STRING
-    SEMICOLON
-    AND
-    OR
-    WHILE
-    FOR
-    TO
-    DO
-    BREAK
     NIL
 
 
-State 59 conflicts: 4 shift/reduce
-State 60 conflicts: 4 shift/reduce
-State 61 conflicts: 4 shift/reduce
-State 62 conflicts: 4 shift/reduce
-State 79 conflicts: 1 shift/reduce
+State 28 conflicts: 1 shift/reduce
+State 73 conflicts: 1 shift/reduce
+State 88 conflicts: 2 shift/reduce
+State 89 conflicts: 2 shift/reduce
+State 90 conflicts: 2 shift/reduce
+State 91 conflicts: 4 shift/reduce
+State 92 conflicts: 4 shift/reduce
+State 93 conflicts: 4 shift/reduce
+State 94 conflicts: 4 shift/reduce
+State 96 conflicts: 1 shift/reduce
+State 117 conflicts: 1 shift/reduce
+State 123 conflicts: 4 shift/reduce
+State 127 conflicts: 1 shift/reduce
 
 
 Grammar
@@ -25,7 +24,7 @@ Grammar
 
     1 prog: let
 
-    2 let: LET decs IN exps END
+    2 let: LET decs IN expseq END
 
     3 decs: decs dec
     4     | ε
@@ -47,8 +46,8 @@ Grammar
    15 vardec: VAR ID ASSIGN exp
    16       | VAR ID COLON ID ASSIGN exp
 
-   17 fundec: FUNCTION ID LPAREN tyfields RPAREN EQ exp
-   18       | FUNCTION ID LPAREN tyfields COLON ID RPAREN EQ exp
+   17 fundec: FUNCTION ID LPAREN tyfields RPAREN EQ expseq
+   18       | FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ expseq
 
    19 lvalue: ID
    20       | lvalue DOT ID
@@ -60,36 +59,56 @@ Grammar
    25     | exp TIMES exp
    26     | exp DIVIDE exp
 
-   27 bool: EQ
-   28     | NEQ
-   29     | LT
-   30     | LE
-   31     | GT
-   32     | GE
+   27 boolexp: boolexp AND boolexp
+   28        | boolexp OR boolexp
+   29        | exp bool exp
 
-   33 exps: lvalue ASSIGN exp
-   34     | IF exp bool exp THEN exps ELSE exps
-   35     | IF exp bool exp THEN exps
+   30 bool: EQ
+   31     | NEQ
+   32     | LT
+   33     | LE
+   34     | GT
+   35     | GE
 
-   36 exp: math
-   37    | lvalue
-   38    | INT
+   36 fparams: COMMA fparams
+   37        | IF boolexp THEN exp ELSE exp
+   38        | exp
+   39        | ε
+
+   40 valess: ID LPAREN fparams RPAREN
+   41       | lvalue ASSIGN exp
+   42       | IF boolexp THEN expseq ELSE expseq
+   43       | IF boolexp THEN expseq
+   44       | WHILE boolexp DO expseq
+   45       | FOR ID ASSIGN exp TO exp DO expseq
+   46       | BREAK
+
+   47 expseq: LPAREN expseq RPAREN
+   48       | expseq SEMICOLON expseq
+   49       | valess
+   50       | ε
+
+   51 exp: math
+   52    | ID LBRACK exp RBRACK OF exp
+   53    | lvalue
+   54    | INT
+   55    | STRING
 
 
 Terminals, with rules where they appear
 
     $end (0) 0
     error (256)
-    ID <sval> (258) 8 9 11 12 15 16 17 18 19 20
-    STRING <sval> (259)
-    INT <ival> (260) 38
-    COMMA (261) 13
+    ID <sval> (258) 8 9 11 12 15 16 17 18 19 20 40 45 52
+    STRING <sval> (259) 55
+    INT <ival> (260) 54
+    COMMA (261) 13 36
     COLON (262) 12 16 18
-    SEMICOLON (263)
-    LPAREN (264) 17 18 22
-    RPAREN (265) 17 18 22
-    LBRACK (266) 21
-    RBRACK (267) 21
+    SEMICOLON (263) 48
+    LPAREN (264) 17 18 22 40 47
+    RPAREN (265) 17 18 22 40 47
+    LBRACK (266) 21 52
+    RBRACK (267) 21 52
     LBRACE (268) 10
     RBRACE (269) 10
     DOT (270) 20
@@ -97,28 +116,28 @@ Terminals, with rules where they appear
     MINUS (272) 24
     TIMES (273) 25
     DIVIDE (274) 26
-    EQ (275) 8 17 18 27
-    NEQ (276) 28
-    LT (277) 29
-    LE (278) 30
-    GT (279) 31
-    GE (280) 32
-    AND (281)
-    OR (282)
-    ASSIGN (283) 15 16 33
+    EQ (275) 8 17 18 30
+    NEQ (276) 31
+    LT (277) 32
+    LE (278) 33
+    GT (279) 34
+    GE (280) 35
+    AND (281) 27
+    OR (282) 28
+    ASSIGN (283) 15 16 41 45
     ARRAY (284) 11
-    IF (285) 34 35
-    THEN (286) 34 35
-    ELSE (287) 34
-    WHILE (288)
-    FOR (289)
-    TO (290)
-    DO (291)
+    IF (285) 37 42 43
+    THEN (286) 37 42 43
+    ELSE (287) 37 42
+    WHILE (288) 44
+    FOR (289) 45
+    TO (290) 45
+    DO (291) 44 45
     LET (292) 2
     IN (293) 2
     END (294) 2
-    OF (295) 11
-    BREAK (296)
+    OF (295) 11 52
+    BREAK (296) 46
     NIL (297)
     FUNCTION (298) 17 18
     VAR (299) 15 16
@@ -158,19 +177,28 @@ Nonterminals, with rules where they appear
         on right: 7
     lvalue (56)
         on left: 19 20 21
-        on right: 20 21 33 37
+        on right: 20 21 41 53
     math (57)
         on left: 22 23 24 25 26
-        on right: 36
-    bool (58)
-        on left: 27 28 29 30 31 32
-        on right: 34 35
-    exps (59)
-        on left: 33 34 35
-        on right: 2 34 35
-    exp (60)
-        on left: 36 37 38
-        on right: 15 16 17 18 21 22 23 24 25 26 33 34 35
+        on right: 51
+    boolexp (58)
+        on left: 27 28 29
+        on right: 27 28 37 42 43 44
+    bool (59)
+        on left: 30 31 32 33 34 35
+        on right: 29
+    fparams (60)
+        on left: 36 37 38 39
+        on right: 36 40
+    valess (61)
+        on left: 40 41 42 43 44 45 46
+        on right: 49
+    expseq (62)
+        on left: 47 48 49 50
+        on right: 2 17 18 42 43 44 45 47 48
+    exp (63)
+        on left: 51 52 53 54 55
+        on right: 15 16 21 22 23 24 25 26 29 37 38 41 45 52
 
 
 State 0
@@ -185,7 +213,7 @@ State 0
 
 State 1
 
-    2 let: LET • decs IN exps END
+    2 let: LET • decs IN expseq END
 
     $default  reduce using rule 4 (decs)
 
@@ -208,7 +236,7 @@ State 3
 
 State 4
 
-    2 let: LET decs • IN exps END
+    2 let: LET decs • IN expseq END
     3 decs: decs • dec
 
     IN        shift, and go to state 6
@@ -231,21 +259,28 @@ State 5
 
 State 6
 
-    2 let: LET decs IN • exps END
+    2 let: LET decs IN • expseq END
 
-    ID  shift, and go to state 14
-    IF  shift, and go to state 15
+    ID      shift, and go to state 14
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
 
-    lvalue  go to state 16
-    exps    go to state 17
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 22
 
 
 State 7
 
-   17 fundec: FUNCTION • ID LPAREN tyfields RPAREN EQ exp
-   18       | FUNCTION • ID LPAREN tyfields COLON ID RPAREN EQ exp
+   17 fundec: FUNCTION • ID LPAREN tyfields RPAREN EQ expseq
+   18       | FUNCTION • ID LPAREN tyfields RPAREN COLON ID EQ expseq
 
-    ID  shift, and go to state 18
+    ID  shift, and go to state 23
 
 
 State 8
@@ -253,14 +288,14 @@ State 8
    15 vardec: VAR • ID ASSIGN exp
    16       | VAR • ID COLON ID ASSIGN exp
 
-    ID  shift, and go to state 19
+    ID  shift, and go to state 24
 
 
 State 9
 
     8 tydec: TYPE • ID EQ ty
 
-    ID  shift, and go to state 20
+    ID  shift, and go to state 25
 
 
 State 10
@@ -294,213 +329,449 @@ State 13
 State 14
 
    19 lvalue: ID •
+   40 valess: ID • LPAREN fparams RPAREN
+
+    LPAREN  shift, and go to state 26
 
     $default  reduce using rule 19 (lvalue)
 
 
 State 15
 
-   34 exps: IF • exp bool exp THEN exps ELSE exps
-   35     | IF • exp bool exp THEN exps
+   47 expseq: LPAREN • expseq RPAREN
 
     ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 25
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 27
 
 
 State 16
 
-   20 lvalue: lvalue • DOT ID
-   21       | lvalue • LBRACK exp RBRACK
-   33 exps: lvalue • ASSIGN exp
+   42 valess: IF • boolexp THEN expseq ELSE expseq
+   43       | IF • boolexp THEN expseq
 
-    LBRACK  shift, and go to state 26
-    DOT     shift, and go to state 27
-    ASSIGN  shift, and go to state 28
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue   go to state 32
+    math     go to state 33
+    boolexp  go to state 34
+    exp      go to state 35
 
 
 State 17
 
-    2 let: LET decs IN exps • END
+   44 valess: WHILE • boolexp DO expseq
 
-    END  shift, and go to state 29
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue   go to state 32
+    math     go to state 33
+    boolexp  go to state 36
+    exp      go to state 35
 
 
 State 18
 
-   17 fundec: FUNCTION ID • LPAREN tyfields RPAREN EQ exp
-   18       | FUNCTION ID • LPAREN tyfields COLON ID RPAREN EQ exp
+   45 valess: FOR • ID ASSIGN exp TO exp DO expseq
 
-    LPAREN  shift, and go to state 30
+    ID  shift, and go to state 37
 
 
 State 19
 
-   15 vardec: VAR ID • ASSIGN exp
-   16       | VAR ID • COLON ID ASSIGN exp
+   46 valess: BREAK •
 
-    COLON   shift, and go to state 31
-    ASSIGN  shift, and go to state 32
+    $default  reduce using rule 46 (valess)
 
 
 State 20
 
-    8 tydec: TYPE ID • EQ ty
+   20 lvalue: lvalue • DOT ID
+   21       | lvalue • LBRACK exp RBRACK
+   41 valess: lvalue • ASSIGN exp
 
-    EQ  shift, and go to state 33
+    LBRACK  shift, and go to state 38
+    DOT     shift, and go to state 39
+    ASSIGN  shift, and go to state 40
 
 
 State 21
 
-   38 exp: INT •
+   49 expseq: valess •
 
-    $default  reduce using rule 38 (exp)
+    $default  reduce using rule 49 (expseq)
 
 
 State 22
 
-   22 math: LPAREN • exp RPAREN
+    2 let: LET decs IN expseq • END
+   48 expseq: expseq • SEMICOLON expseq
 
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
-
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 34
+    SEMICOLON  shift, and go to state 41
+    END        shift, and go to state 42
 
 
 State 23
 
-   20 lvalue: lvalue • DOT ID
-   21       | lvalue • LBRACK exp RBRACK
-   37 exp: lvalue •
+   17 fundec: FUNCTION ID • LPAREN tyfields RPAREN EQ expseq
+   18       | FUNCTION ID • LPAREN tyfields RPAREN COLON ID EQ expseq
 
-    LBRACK  shift, and go to state 26
-    DOT     shift, and go to state 27
-
-    $default  reduce using rule 37 (exp)
+    LPAREN  shift, and go to state 43
 
 
 State 24
 
-   36 exp: math •
+   15 vardec: VAR ID • ASSIGN exp
+   16       | VAR ID • COLON ID ASSIGN exp
 
-    $default  reduce using rule 36 (exp)
+    COLON   shift, and go to state 44
+    ASSIGN  shift, and go to state 45
 
 
 State 25
+
+    8 tydec: TYPE ID • EQ ty
+
+    EQ  shift, and go to state 46
+
+
+State 26
+
+   40 valess: ID LPAREN • fparams RPAREN
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    COMMA   shift, and go to state 47
+    LPAREN  shift, and go to state 31
+    IF      shift, and go to state 48
+
+    $default  reduce using rule 39 (fparams)
+
+    lvalue   go to state 32
+    math     go to state 33
+    fparams  go to state 49
+    exp      go to state 50
+
+
+State 27
+
+   47 expseq: LPAREN expseq • RPAREN
+   48       | expseq • SEMICOLON expseq
+
+    SEMICOLON  shift, and go to state 41
+    RPAREN     shift, and go to state 51
+
+
+State 28
+
+   19 lvalue: ID •
+   52 exp: ID • LBRACK exp RBRACK OF exp
+
+    LBRACK  shift, and go to state 52
+
+    LBRACK    [reduce using rule 19 (lvalue)]
+    $default  reduce using rule 19 (lvalue)
+
+
+State 29
+
+   55 exp: STRING •
+
+    $default  reduce using rule 55 (exp)
+
+
+State 30
+
+   54 exp: INT •
+
+    $default  reduce using rule 54 (exp)
+
+
+State 31
+
+   22 math: LPAREN • exp RPAREN
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 53
+
+
+State 32
+
+   20 lvalue: lvalue • DOT ID
+   21       | lvalue • LBRACK exp RBRACK
+   53 exp: lvalue •
+
+    LBRACK  shift, and go to state 38
+    DOT     shift, and go to state 39
+
+    $default  reduce using rule 53 (exp)
+
+
+State 33
+
+   51 exp: math •
+
+    $default  reduce using rule 51 (exp)
+
+
+State 34
+
+   27 boolexp: boolexp • AND boolexp
+   28        | boolexp • OR boolexp
+   42 valess: IF boolexp • THEN expseq ELSE expseq
+   43       | IF boolexp • THEN expseq
+
+    AND   shift, and go to state 54
+    OR    shift, and go to state 55
+    THEN  shift, and go to state 56
+
+
+State 35
 
    23 math: exp • PLUS exp
    24     | exp • MINUS exp
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
-   34 exps: IF exp • bool exp THEN exps ELSE exps
-   35     | IF exp • bool exp THEN exps
+   29 boolexp: exp • bool exp
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
-    EQ      shift, and go to state 39
-    NEQ     shift, and go to state 40
-    LT      shift, and go to state 41
-    LE      shift, and go to state 42
-    GT      shift, and go to state 43
-    GE      shift, and go to state 44
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+    EQ      shift, and go to state 61
+    NEQ     shift, and go to state 62
+    LT      shift, and go to state 63
+    LE      shift, and go to state 64
+    GT      shift, and go to state 65
+    GE      shift, and go to state 66
 
-    bool  go to state 45
+    bool  go to state 67
 
 
-State 26
+State 36
+
+   27 boolexp: boolexp • AND boolexp
+   28        | boolexp • OR boolexp
+   44 valess: WHILE boolexp • DO expseq
+
+    AND  shift, and go to state 54
+    OR   shift, and go to state 55
+    DO   shift, and go to state 68
+
+
+State 37
+
+   45 valess: FOR ID • ASSIGN exp TO exp DO expseq
+
+    ASSIGN  shift, and go to state 69
+
+
+State 38
 
    21 lvalue: lvalue LBRACK • exp RBRACK
 
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 46
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 70
 
 
-State 27
+State 39
 
    20 lvalue: lvalue DOT • ID
 
-    ID  shift, and go to state 47
+    ID  shift, and go to state 71
 
 
-State 28
+State 40
 
-   33 exps: lvalue ASSIGN • exp
+   41 valess: lvalue ASSIGN • exp
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 72
+
+
+State 41
+
+   48 expseq: expseq SEMICOLON • expseq
 
     ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 48
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 73
 
 
-State 29
+State 42
 
-    2 let: LET decs IN exps END •
+    2 let: LET decs IN expseq END •
 
     $default  reduce using rule 2 (let)
 
 
-State 30
+State 43
 
-   17 fundec: FUNCTION ID LPAREN • tyfields RPAREN EQ exp
-   18       | FUNCTION ID LPAREN • tyfields COLON ID RPAREN EQ exp
+   17 fundec: FUNCTION ID LPAREN • tyfields RPAREN EQ expseq
+   18       | FUNCTION ID LPAREN • tyfields RPAREN COLON ID EQ expseq
 
-    ID     shift, and go to state 49
-    COMMA  shift, and go to state 50
+    ID     shift, and go to state 74
+    COMMA  shift, and go to state 75
 
     $default  reduce using rule 14 (tyfields)
 
-    tyfields  go to state 51
+    tyfields  go to state 76
 
 
-State 31
+State 44
 
    16 vardec: VAR ID COLON • ID ASSIGN exp
 
-    ID  shift, and go to state 52
+    ID  shift, and go to state 77
 
 
-State 32
+State 45
 
    15 vardec: VAR ID ASSIGN • exp
 
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 53
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 78
 
 
-State 33
+State 46
 
     8 tydec: TYPE ID EQ • ty
 
-    ID      shift, and go to state 54
-    LBRACE  shift, and go to state 55
-    ARRAY   shift, and go to state 56
+    ID      shift, and go to state 79
+    LBRACE  shift, and go to state 80
+    ARRAY   shift, and go to state 81
 
-    ty  go to state 57
+    ty  go to state 82
 
 
-State 34
+State 47
+
+   36 fparams: COMMA • fparams
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    COMMA   shift, and go to state 47
+    LPAREN  shift, and go to state 31
+    IF      shift, and go to state 48
+
+    $default  reduce using rule 39 (fparams)
+
+    lvalue   go to state 32
+    math     go to state 33
+    fparams  go to state 83
+    exp      go to state 50
+
+
+State 48
+
+   37 fparams: IF • boolexp THEN exp ELSE exp
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue   go to state 32
+    math     go to state 33
+    boolexp  go to state 84
+    exp      go to state 35
+
+
+State 49
+
+   40 valess: ID LPAREN fparams • RPAREN
+
+    RPAREN  shift, and go to state 85
+
+
+State 50
+
+   23 math: exp • PLUS exp
+   24     | exp • MINUS exp
+   25     | exp • TIMES exp
+   26     | exp • DIVIDE exp
+   38 fparams: exp •
+
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+
+    $default  reduce using rule 38 (fparams)
+
+
+State 51
+
+   47 expseq: LPAREN expseq RPAREN •
+
+    $default  reduce using rule 47 (expseq)
+
+
+State 52
+
+   52 exp: ID LBRACK • exp RBRACK OF exp
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 86
+
+
+State 53
 
    22 math: LPAREN exp • RPAREN
    23     | exp • PLUS exp
@@ -508,122 +779,207 @@ State 34
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
 
-    RPAREN  shift, and go to state 58
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    RPAREN  shift, and go to state 87
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
 
-State 35
+State 54
+
+   27 boolexp: boolexp AND • boolexp
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue   go to state 32
+    math     go to state 33
+    boolexp  go to state 88
+    exp      go to state 35
+
+
+State 55
+
+   28 boolexp: boolexp OR • boolexp
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue   go to state 32
+    math     go to state 33
+    boolexp  go to state 89
+    exp      go to state 35
+
+
+State 56
+
+   42 valess: IF boolexp THEN • expseq ELSE expseq
+   43       | IF boolexp THEN • expseq
+
+    ID      shift, and go to state 14
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
+
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 90
+
+
+State 57
 
    23 math: exp PLUS • exp
 
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 59
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 91
 
 
-State 36
+State 58
 
    24 math: exp MINUS • exp
 
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 60
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 92
 
 
-State 37
+State 59
 
    25 math: exp TIMES • exp
 
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 61
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 93
 
 
-State 38
+State 60
 
    26 math: exp DIVIDE • exp
 
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 62
-
-
-State 39
-
-   27 bool: EQ •
-
-    $default  reduce using rule 27 (bool)
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 94
 
 
-State 40
+State 61
 
-   28 bool: NEQ •
-
-    $default  reduce using rule 28 (bool)
-
-
-State 41
-
-   29 bool: LT •
-
-    $default  reduce using rule 29 (bool)
-
-
-State 42
-
-   30 bool: LE •
+   30 bool: EQ •
 
     $default  reduce using rule 30 (bool)
 
 
-State 43
+State 62
 
-   31 bool: GT •
+   31 bool: NEQ •
 
     $default  reduce using rule 31 (bool)
 
 
-State 44
+State 63
 
-   32 bool: GE •
+   32 bool: LT •
 
     $default  reduce using rule 32 (bool)
 
 
-State 45
+State 64
 
-   34 exps: IF exp bool • exp THEN exps ELSE exps
-   35     | IF exp bool • exp THEN exps
+   33 bool: LE •
+
+    $default  reduce using rule 33 (bool)
+
+
+State 65
+
+   34 bool: GT •
+
+    $default  reduce using rule 34 (bool)
+
+
+State 66
+
+   35 bool: GE •
+
+    $default  reduce using rule 35 (bool)
+
+
+State 67
+
+   29 boolexp: exp bool • exp
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 95
+
+
+State 68
+
+   44 valess: WHILE boolexp DO • expseq
 
     ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 63
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 96
 
 
-State 46
+State 69
+
+   45 valess: FOR ID ASSIGN • exp TO exp DO expseq
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 97
+
+
+State 70
 
    21 lvalue: lvalue LBRACK exp • RBRACK
    23 math: exp • PLUS exp
@@ -631,72 +987,82 @@ State 46
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
 
-    RBRACK  shift, and go to state 64
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    RBRACK  shift, and go to state 98
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
 
-State 47
+State 71
 
    20 lvalue: lvalue DOT ID •
 
     $default  reduce using rule 20 (lvalue)
 
 
-State 48
+State 72
 
    23 math: exp • PLUS exp
    24     | exp • MINUS exp
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
-   33 exps: lvalue ASSIGN exp •
+   41 valess: lvalue ASSIGN exp •
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
-    $default  reduce using rule 33 (exps)
+    $default  reduce using rule 41 (valess)
 
 
-State 49
+State 73
+
+   48 expseq: expseq • SEMICOLON expseq
+   48       | expseq SEMICOLON expseq •
+
+    SEMICOLON  shift, and go to state 41
+
+    SEMICOLON  [reduce using rule 48 (expseq)]
+    $default   reduce using rule 48 (expseq)
+
+
+State 74
 
    12 tyfields: ID • COLON ID tyfields
 
-    COLON  shift, and go to state 65
+    COLON  shift, and go to state 99
 
 
-State 50
+State 75
 
    13 tyfields: COMMA • tyfields
 
-    ID     shift, and go to state 49
-    COMMA  shift, and go to state 50
+    ID     shift, and go to state 74
+    COMMA  shift, and go to state 75
 
     $default  reduce using rule 14 (tyfields)
 
-    tyfields  go to state 66
+    tyfields  go to state 100
 
 
-State 51
+State 76
 
-   17 fundec: FUNCTION ID LPAREN tyfields • RPAREN EQ exp
-   18       | FUNCTION ID LPAREN tyfields • COLON ID RPAREN EQ exp
+   17 fundec: FUNCTION ID LPAREN tyfields • RPAREN EQ expseq
+   18       | FUNCTION ID LPAREN tyfields • RPAREN COLON ID EQ expseq
 
-    COLON   shift, and go to state 67
-    RPAREN  shift, and go to state 68
+    RPAREN  shift, and go to state 101
 
 
-State 52
+State 77
 
    16 vardec: VAR ID COLON ID • ASSIGN exp
 
-    ASSIGN  shift, and go to state 69
+    ASSIGN  shift, and go to state 102
 
 
-State 53
+State 78
 
    15 vardec: VAR ID ASSIGN exp •
    23 math: exp • PLUS exp
@@ -704,55 +1070,137 @@ State 53
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
     $default  reduce using rule 15 (vardec)
 
 
-State 54
+State 79
 
     9 ty: ID •
 
     $default  reduce using rule 9 (ty)
 
 
-State 55
+State 80
 
    10 ty: LBRACE • tyfields RBRACE
 
-    ID     shift, and go to state 49
-    COMMA  shift, and go to state 50
+    ID     shift, and go to state 74
+    COMMA  shift, and go to state 75
 
     $default  reduce using rule 14 (tyfields)
 
-    tyfields  go to state 70
+    tyfields  go to state 103
 
 
-State 56
+State 81
 
    11 ty: ARRAY • OF ID
 
-    OF  shift, and go to state 71
+    OF  shift, and go to state 104
 
 
-State 57
+State 82
 
     8 tydec: TYPE ID EQ ty •
 
     $default  reduce using rule 8 (tydec)
 
 
-State 58
+State 83
+
+   36 fparams: COMMA fparams •
+
+    $default  reduce using rule 36 (fparams)
+
+
+State 84
+
+   27 boolexp: boolexp • AND boolexp
+   28        | boolexp • OR boolexp
+   37 fparams: IF boolexp • THEN exp ELSE exp
+
+    AND   shift, and go to state 54
+    OR    shift, and go to state 55
+    THEN  shift, and go to state 105
+
+
+State 85
+
+   40 valess: ID LPAREN fparams RPAREN •
+
+    $default  reduce using rule 40 (valess)
+
+
+State 86
+
+   23 math: exp • PLUS exp
+   24     | exp • MINUS exp
+   25     | exp • TIMES exp
+   26     | exp • DIVIDE exp
+   52 exp: ID LBRACK exp • RBRACK OF exp
+
+    RBRACK  shift, and go to state 106
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+
+
+State 87
 
    22 math: LPAREN exp RPAREN •
 
     $default  reduce using rule 22 (math)
 
 
-State 59
+State 88
+
+   27 boolexp: boolexp • AND boolexp
+   27        | boolexp AND boolexp •
+   28        | boolexp • OR boolexp
+
+    AND  shift, and go to state 54
+    OR   shift, and go to state 55
+
+    AND       [reduce using rule 27 (boolexp)]
+    OR        [reduce using rule 27 (boolexp)]
+    $default  reduce using rule 27 (boolexp)
+
+
+State 89
+
+   27 boolexp: boolexp • AND boolexp
+   28        | boolexp • OR boolexp
+   28        | boolexp OR boolexp •
+
+    AND  shift, and go to state 54
+    OR   shift, and go to state 55
+
+    AND       [reduce using rule 28 (boolexp)]
+    OR        [reduce using rule 28 (boolexp)]
+    $default  reduce using rule 28 (boolexp)
+
+
+State 90
+
+   42 valess: IF boolexp THEN expseq • ELSE expseq
+   43       | IF boolexp THEN expseq •
+   48 expseq: expseq • SEMICOLON expseq
+
+    SEMICOLON  shift, and go to state 41
+    ELSE       shift, and go to state 107
+
+    SEMICOLON  [reduce using rule 43 (valess)]
+    ELSE       [reduce using rule 43 (valess)]
+    $default   reduce using rule 43 (valess)
+
+
+State 91
 
    23 math: exp • PLUS exp
    23     | exp PLUS exp •
@@ -760,10 +1208,10 @@ State 59
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
     PLUS      [reduce using rule 23 (math)]
     MINUS     [reduce using rule 23 (math)]
@@ -772,7 +1220,7 @@ State 59
     $default  reduce using rule 23 (math)
 
 
-State 60
+State 92
 
    23 math: exp • PLUS exp
    24     | exp • MINUS exp
@@ -780,10 +1228,10 @@ State 60
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
     PLUS      [reduce using rule 24 (math)]
     MINUS     [reduce using rule 24 (math)]
@@ -792,7 +1240,7 @@ State 60
     $default  reduce using rule 24 (math)
 
 
-State 61
+State 93
 
    23 math: exp • PLUS exp
    24     | exp • MINUS exp
@@ -800,10 +1248,10 @@ State 61
    25     | exp TIMES exp •
    26     | exp • DIVIDE exp
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
     PLUS      [reduce using rule 25 (math)]
     MINUS     [reduce using rule 25 (math)]
@@ -812,7 +1260,7 @@ State 61
     $default  reduce using rule 25 (math)
 
 
-State 62
+State 94
 
    23 math: exp • PLUS exp
    24     | exp • MINUS exp
@@ -820,10 +1268,10 @@ State 62
    26     | exp • DIVIDE exp
    26     | exp DIVIDE exp •
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
     PLUS      [reduce using rule 26 (math)]
     MINUS     [reduce using rule 26 (math)]
@@ -832,129 +1280,197 @@ State 62
     $default  reduce using rule 26 (math)
 
 
-State 63
+State 95
 
    23 math: exp • PLUS exp
    24     | exp • MINUS exp
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
-   34 exps: IF exp bool exp • THEN exps ELSE exps
-   35     | IF exp bool exp • THEN exps
+   29 boolexp: exp bool exp •
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
-    THEN    shift, and go to state 72
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+
+    $default  reduce using rule 29 (boolexp)
 
 
-State 64
+State 96
+
+   44 valess: WHILE boolexp DO expseq •
+   48 expseq: expseq • SEMICOLON expseq
+
+    SEMICOLON  shift, and go to state 41
+
+    SEMICOLON  [reduce using rule 44 (valess)]
+    $default   reduce using rule 44 (valess)
+
+
+State 97
+
+   23 math: exp • PLUS exp
+   24     | exp • MINUS exp
+   25     | exp • TIMES exp
+   26     | exp • DIVIDE exp
+   45 valess: FOR ID ASSIGN exp • TO exp DO expseq
+
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+    TO      shift, and go to state 108
+
+
+State 98
 
    21 lvalue: lvalue LBRACK exp RBRACK •
 
     $default  reduce using rule 21 (lvalue)
 
 
-State 65
+State 99
 
    12 tyfields: ID COLON • ID tyfields
 
-    ID  shift, and go to state 73
+    ID  shift, and go to state 109
 
 
-State 66
+State 100
 
    13 tyfields: COMMA tyfields •
 
     $default  reduce using rule 13 (tyfields)
 
 
-State 67
+State 101
 
-   18 fundec: FUNCTION ID LPAREN tyfields COLON • ID RPAREN EQ exp
+   17 fundec: FUNCTION ID LPAREN tyfields RPAREN • EQ expseq
+   18       | FUNCTION ID LPAREN tyfields RPAREN • COLON ID EQ expseq
 
-    ID  shift, and go to state 74
-
-
-State 68
-
-   17 fundec: FUNCTION ID LPAREN tyfields RPAREN • EQ exp
-
-    EQ  shift, and go to state 75
+    COLON  shift, and go to state 110
+    EQ     shift, and go to state 111
 
 
-State 69
+State 102
 
    16 vardec: VAR ID COLON ID ASSIGN • exp
 
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 76
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 112
 
 
-State 70
+State 103
 
    10 ty: LBRACE tyfields • RBRACE
 
-    RBRACE  shift, and go to state 77
+    RBRACE  shift, and go to state 113
 
 
-State 71
+State 104
 
    11 ty: ARRAY OF • ID
 
-    ID  shift, and go to state 78
+    ID  shift, and go to state 114
 
 
-State 72
+State 105
 
-   34 exps: IF exp bool exp THEN • exps ELSE exps
-   35     | IF exp bool exp THEN • exps
+   37 fparams: IF boolexp THEN • exp ELSE exp
 
-    ID  shift, and go to state 14
-    IF  shift, and go to state 15
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 16
-    exps    go to state 79
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 115
 
 
-State 73
+State 106
+
+   52 exp: ID LBRACK exp RBRACK • OF exp
+
+    OF  shift, and go to state 116
+
+
+State 107
+
+   42 valess: IF boolexp THEN expseq ELSE • expseq
+
+    ID      shift, and go to state 14
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
+
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 117
+
+
+State 108
+
+   45 valess: FOR ID ASSIGN exp TO • exp DO expseq
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 118
+
+
+State 109
 
    12 tyfields: ID COLON ID • tyfields
 
-    ID     shift, and go to state 49
-    COMMA  shift, and go to state 50
+    ID     shift, and go to state 74
+    COMMA  shift, and go to state 75
 
     $default  reduce using rule 14 (tyfields)
 
-    tyfields  go to state 80
+    tyfields  go to state 119
 
 
-State 74
+State 110
 
-   18 fundec: FUNCTION ID LPAREN tyfields COLON ID • RPAREN EQ exp
+   18 fundec: FUNCTION ID LPAREN tyfields RPAREN COLON • ID EQ expseq
 
-    RPAREN  shift, and go to state 81
+    ID  shift, and go to state 120
 
 
-State 75
+State 111
 
-   17 fundec: FUNCTION ID LPAREN tyfields RPAREN EQ • exp
+   17 fundec: FUNCTION ID LPAREN tyfields RPAREN EQ • expseq
 
     ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
 
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 82
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 121
 
 
-State 76
+State 112
 
    16 vardec: VAR ID COLON ID ASSIGN exp •
    23 math: exp • PLUS exp
@@ -962,111 +1478,209 @@ State 76
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
 
     $default  reduce using rule 16 (vardec)
 
 
-State 77
+State 113
 
    10 ty: LBRACE tyfields RBRACE •
 
     $default  reduce using rule 10 (ty)
 
 
-State 78
+State 114
 
    11 ty: ARRAY OF ID •
 
     $default  reduce using rule 11 (ty)
 
 
-State 79
+State 115
 
-   34 exps: IF exp bool exp THEN exps • ELSE exps
-   35     | IF exp bool exp THEN exps •
+   23 math: exp • PLUS exp
+   24     | exp • MINUS exp
+   25     | exp • TIMES exp
+   26     | exp • DIVIDE exp
+   37 fparams: IF boolexp THEN exp • ELSE exp
 
-    ELSE  shift, and go to state 83
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+    ELSE    shift, and go to state 122
 
-    ELSE      [reduce using rule 35 (exps)]
-    $default  reduce using rule 35 (exps)
+
+State 116
+
+   52 exp: ID LBRACK exp RBRACK OF • exp
+
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
+
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 123
 
 
-State 80
+State 117
+
+   42 valess: IF boolexp THEN expseq ELSE expseq •
+   48 expseq: expseq • SEMICOLON expseq
+
+    SEMICOLON  shift, and go to state 41
+
+    SEMICOLON  [reduce using rule 42 (valess)]
+    $default   reduce using rule 42 (valess)
+
+
+State 118
+
+   23 math: exp • PLUS exp
+   24     | exp • MINUS exp
+   25     | exp • TIMES exp
+   26     | exp • DIVIDE exp
+   45 valess: FOR ID ASSIGN exp TO exp • DO expseq
+
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+    DO      shift, and go to state 124
+
+
+State 119
 
    12 tyfields: ID COLON ID tyfields •
 
     $default  reduce using rule 12 (tyfields)
 
 
-State 81
+State 120
 
-   18 fundec: FUNCTION ID LPAREN tyfields COLON ID RPAREN • EQ exp
+   18 fundec: FUNCTION ID LPAREN tyfields RPAREN COLON ID • EQ expseq
 
-    EQ  shift, and go to state 84
+    EQ  shift, and go to state 125
 
 
-State 82
+State 121
 
-   17 fundec: FUNCTION ID LPAREN tyfields RPAREN EQ exp •
-   23 math: exp • PLUS exp
-   24     | exp • MINUS exp
-   25     | exp • TIMES exp
-   26     | exp • DIVIDE exp
+   17 fundec: FUNCTION ID LPAREN tyfields RPAREN EQ expseq •
+   48 expseq: expseq • SEMICOLON expseq
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    SEMICOLON  shift, and go to state 41
 
     $default  reduce using rule 17 (fundec)
 
 
-State 83
+State 122
 
-   34 exps: IF exp bool exp THEN exps ELSE • exps
+   37 fparams: IF boolexp THEN exp ELSE • exp
 
-    ID  shift, and go to state 14
-    IF  shift, and go to state 15
+    ID      shift, and go to state 28
+    STRING  shift, and go to state 29
+    INT     shift, and go to state 30
+    LPAREN  shift, and go to state 31
 
-    lvalue  go to state 16
-    exps    go to state 85
-
-
-State 84
-
-   18 fundec: FUNCTION ID LPAREN tyfields COLON ID RPAREN EQ • exp
-
-    ID      shift, and go to state 14
-    INT     shift, and go to state 21
-    LPAREN  shift, and go to state 22
-
-    lvalue  go to state 23
-    math    go to state 24
-    exp     go to state 86
+    lvalue  go to state 32
+    math    go to state 33
+    exp     go to state 126
 
 
-State 85
+State 123
 
-   34 exps: IF exp bool exp THEN exps ELSE exps •
-
-    $default  reduce using rule 34 (exps)
-
-
-State 86
-
-   18 fundec: FUNCTION ID LPAREN tyfields COLON ID RPAREN EQ exp •
    23 math: exp • PLUS exp
    24     | exp • MINUS exp
    25     | exp • TIMES exp
    26     | exp • DIVIDE exp
+   52 exp: ID LBRACK exp RBRACK OF exp •
 
-    PLUS    shift, and go to state 35
-    MINUS   shift, and go to state 36
-    TIMES   shift, and go to state 37
-    DIVIDE  shift, and go to state 38
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+
+    PLUS      [reduce using rule 52 (exp)]
+    MINUS     [reduce using rule 52 (exp)]
+    TIMES     [reduce using rule 52 (exp)]
+    DIVIDE    [reduce using rule 52 (exp)]
+    $default  reduce using rule 52 (exp)
+
+
+State 124
+
+   45 valess: FOR ID ASSIGN exp TO exp DO • expseq
+
+    ID      shift, and go to state 14
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
+
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 127
+
+
+State 125
+
+   18 fundec: FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ • expseq
+
+    ID      shift, and go to state 14
+    LPAREN  shift, and go to state 15
+    IF      shift, and go to state 16
+    WHILE   shift, and go to state 17
+    FOR     shift, and go to state 18
+    BREAK   shift, and go to state 19
+
+    $default  reduce using rule 50 (expseq)
+
+    lvalue  go to state 20
+    valess  go to state 21
+    expseq  go to state 128
+
+
+State 126
+
+   23 math: exp • PLUS exp
+   24     | exp • MINUS exp
+   25     | exp • TIMES exp
+   26     | exp • DIVIDE exp
+   37 fparams: IF boolexp THEN exp ELSE exp •
+
+    PLUS    shift, and go to state 57
+    MINUS   shift, and go to state 58
+    TIMES   shift, and go to state 59
+    DIVIDE  shift, and go to state 60
+
+    $default  reduce using rule 37 (fparams)
+
+
+State 127
+
+   45 valess: FOR ID ASSIGN exp TO exp DO expseq •
+   48 expseq: expseq • SEMICOLON expseq
+
+    SEMICOLON  shift, and go to state 41
+
+    SEMICOLON  [reduce using rule 45 (valess)]
+    $default   reduce using rule 45 (valess)
+
+
+State 128
+
+   18 fundec: FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ expseq •
+   48 expseq: expseq • SEMICOLON expseq
+
+    SEMICOLON  shift, and go to state 41
 
     $default  reduce using rule 18 (fundec)
