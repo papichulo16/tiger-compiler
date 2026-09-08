@@ -1,6 +1,8 @@
 %{
 #include <string.h>
 #include "util.h"
+#include "symbol.h"
+#include "absyn.h"
 #include "y.tab.h"
 #include "errormsg.h"
 

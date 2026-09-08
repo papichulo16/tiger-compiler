@@ -59,8 +59,8 @@ let
     ;
 
 decs
-    : decs dec
-    | error dec
+    : dec decs
+    | dec error
     |
     ;
 
@@ -78,8 +78,8 @@ ty
     | ARRAY OF ID
     ;
 tyfields
-    : ID COLON ID tyfields
-    | COMMA tyfields
+    : ID COLON ID
+    | ID COLON ID COMMA tyfields
     | 
     ;
 
@@ -109,7 +109,8 @@ lvalue_suffix
     ;
 
 fparams
-    : fparams COMMA fparams 
+    : IF exp THEN exp ELSE exp COMMA fparams
+    | exp COMMA fparams
     | IF exp THEN exp ELSE exp
     | exp
     |
