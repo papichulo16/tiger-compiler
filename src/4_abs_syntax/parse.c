@@ -15,8 +15,29 @@ extern A_exp absyn_root;
 /* parse source file fname; 
    return abstract syntax data structure */
 A_exp parse(string fname) 
-{EM_reset(fname);
- if (yyparse() == 0) /* parsing worked */
-   return absyn_root;
- else return NULL;
+{
+  EM_reset(fname);
+
+  if (yyparse() || EM_err_count) {
+
+    fprintf(stdout, "parse failed\n");
+
+    return NULL;
+  } 
+
+  fprintf(stdout, "parse passed\n");
+
+  return absyn_root;
 }
+
+int main(int argc, char** argv) {
+
+  if (argc < 2) {
+    
+    fprintf(stderr,"usage: %s filename\n", argv[0]); 
+    exit(1);
+  }
+
+  parse(argv[1]);
+}
+

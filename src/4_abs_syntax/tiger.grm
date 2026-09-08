@@ -5,23 +5,33 @@
 #include "errormsg.h"
 #include "absyn.h"
 
-int yylex(void); /* function prototype */
+extern int yylineno;
+extern char* yytext;
+extern char curr_line[];
 
-A_exp absyn_root;
+int EM_err_count = 0;
+A_exp absyn_root = NULL;
+
+int yylex(void); /* function prototype */
 
 void yyerror(char *s)
 {
- EM_error(EM_tokPos, "%s", s);
+
+ 
+ EM_error(EM_tokPos, "\"%s\"\n\t\t%s in line %d, near '%s'\n", curr_line, s, yylineno, yytext);
+ EM_err_count += 1;
+
 }
 %}
 
+%debug
 
 %union {
 	int pos;
 	int ival;
 	string sval;
-	A_var var;
-	A_exp exp;
+	//A_var var;
+	//A_exp exp;
 	/* et cetera */
 	}
 
@@ -37,17 +47,128 @@ void yyerror(char *s)
   BREAK NIL
   FUNCTION VAR TYPE 
 
-%type <exp> exp program
-/* et cetera */
+%left OR
+%left AND
+%left EQ NEQ LT LE GT GE
+%left PLUS MINUS
+%left TIMES DIVIDE
 
-%start program
+%start prog
 
 %%
 
-program:   exp    {absyn_root=$1;}
+prog
+    :	exp
 
-exp:   ID         {$$=A_VarExp(EM_tokPos,A_SimpleVar(EM_tokPos,S_Symbol($1)));}
+let
+    : LET decs IN expseq END
+    ;
 
+decs
+    : decs dec
+    | error dec
+    |
+    ;
 
+dec
+    : tydec
+    | vardec
+    | fundec
+    ;
 
-	
+tydec
+    : TYPE ID EQ ty
+ty
+    : ID
+    | LBRACE tyfields RBRACE
+    | ARRAY OF ID
+    ;
+tyfields
+    : ID COLON ID tyfields
+    | COMMA tyfields
+    | 
+    ;
+
+vardec
+    : VAR ID ASSIGN exp
+    | VAR ID COLON ID ASSIGN exp
+    ;
+
+arrdec
+    : ID LBRACK exp RBRACK OF exp 
+    | ID NIL
+    ;
+
+fundec
+    : FUNCTION ID LPAREN tyfields RPAREN EQ exp
+    | FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ exp
+    ;
+
+lvalue
+    : ID lvalue_suffix
+    ;
+
+lvalue_suffix
+    : DOT ID lvalue_suffix
+    | LBRACK exp RBRACK lvalue_suffix
+    |
+    ;
+
+fparams
+    : fparams COMMA fparams 
+    | IF exp THEN exp ELSE exp
+    | exp
+    |
+    ;
+
+valess
+    : ID LPAREN fparams RPAREN
+    | lvalue ASSIGN exp
+    | IF exp THEN expseq ELSE expseq
+    | IF exp THEN expseq
+    | WHILE exp DO expseq
+    | FOR ID ASSIGN exp TO exp DO expseq
+    | BREAK
+    ;
+
+recpara
+    : ID EQ exp
+    | recpara COMMA recpara
+    |
+    ;
+rec
+    : ID LBRACE recpara RBRACE
+
+expseq
+    : exp
+    | expseq SEMICOLON exp
+    | error SEMICOLON exp
+    |
+    ;
+exp
+    : exp OR exp
+    | exp AND exp
+    | exp EQ exp
+    | exp NEQ exp
+    | exp LT exp
+    | exp LE exp
+    | exp GT exp
+    | exp GE exp
+    | exp LT GT exp
+    | exp PLUS exp
+    | MINUS exp
+    | exp MINUS exp
+    | exp TIMES exp
+    | exp DIVIDE exp
+    | valess
+    | lvalue
+    | arrdec
+    | rec
+    | let
+    | NIL
+    | INT 
+    | STRING
+    | LPAREN expseq RPAREN
+    | LPAREN error RPAREN
+    ;
+
