@@ -5,12 +5,19 @@
 
 extern int yylineno;
 extern char* yytext;
+extern char curr_line[];
+
+int EM_err_count = 0;
 
 int yylex(void); /* function prototype */
 
 void yyerror(char *s)
 {
- EM_error(EM_tokPos, "%s in line %d, near '%s'", s, yylineno, yytext);
+
+ 
+ EM_error(EM_tokPos, "\"%s\"\n\t\t%s in line %d, near '%s'\n", curr_line, s, yylineno, yytext);
+ EM_err_count += 1;
+
 }
 %}
 
@@ -53,6 +60,7 @@ let
 
 decs
     : decs dec
+    | error dec
     |
     ;
 
@@ -128,6 +136,7 @@ rec
 expseq
     : exp
     | expseq SEMICOLON exp
+    | error SEMICOLON exp
     |
     ;
 exp
@@ -154,5 +163,6 @@ exp
     | INT 
     | STRING
     | LPAREN expseq RPAREN
+    | LPAREN error RPAREN
     ;
 

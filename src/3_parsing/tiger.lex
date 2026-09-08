@@ -7,6 +7,8 @@
 extern int yylineno;
 
 int charPos=1;
+#define MAX_LINE 512
+char curr_line[MAX_LINE];
 
 int yywrap(void)
 {
@@ -31,6 +33,18 @@ STR ["][^"]*["]
 COMMENT [/][*]([^*]|[*][^/])*[*][/]
 
 %%
+^(.*)\n {
+    strncpy(curr_line, yytext, MAX_LINE - 1);
+    curr_line[MAX_LINE - 1] = '\0';
+
+    if (char* p = strchr(curr_line, '\n')
+        , p)
+      *p = '\0';
+    
+    REJECT;
+}
+
+
 " "	 {adjust(); continue;}
 \n	 {adjust(); EM_newline(); continue;}
 
@@ -87,4 +101,6 @@ of {adjust(); return OF;}
 {IDENT} {adjust(); yylval.sval = strdup(yytext); return ID;}
 
 .	 {adjust(); EM_error(EM_tokPos,"illegal token");}
+
+%%
 

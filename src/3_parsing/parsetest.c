@@ -9,13 +9,14 @@ void parse(string fname)
 {
 
   EM_reset(fname);
-
-  yydebug = 1;
+  //yydebug = 1;
 
   if (yyparse() == 0) /* parsing worked */
     fprintf(stderr,"Parsing successful!\n");
   else 
     fprintf(stderr,"Parsing failed\n");
+
+  printf("%d errors caught by parser\n", EM_err_count);
 }
 
 int main(int argc, char **argv) {
