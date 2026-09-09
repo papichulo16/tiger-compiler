@@ -11,7 +11,7 @@ void parse(string fname)
   EM_reset(fname);
   //yydebug = 1;
 
-  if (yyparse() == 0) /* parsing worked */
+  if (yyparse() == 0 && !EM_err_count) /* parsing worked */
     fprintf(stderr,"Parsing successful!\n");
   else 
     fprintf(stderr,"Parsing failed\n");

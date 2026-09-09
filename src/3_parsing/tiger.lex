@@ -69,7 +69,7 @@ COMMENT [/][*]([^*]|[*][^/])*[*][/]
 "/" {adjust(); return DIVIDE;}
 
 "=" {adjust(); return EQ;}
-"!=" {adjust(); return NEQ;}
+"<>" {adjust(); return NEQ;}
 "<=" {adjust(); return LE;}
 ">=" {adjust(); return GE;}
 "<" {adjust(); return LT;}

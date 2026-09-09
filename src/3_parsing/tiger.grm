@@ -99,13 +99,10 @@ fundec
     ;
 
 lvalue
-    : ID lvalue_suffix
-    ;
-
-lvalue_suffix
-    : DOT ID lvalue_suffix
-    | LBRACK exp RBRACK lvalue_suffix
-    |
+    : ID 
+    | lvalue DOT ID
+    | lvalue LBRACK exp RBRACK 
+    | ID LBRACK exp RBRACK 
     ;
 
 fparams
