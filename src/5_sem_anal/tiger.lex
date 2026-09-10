@@ -1,0 +1,109 @@
+%{
+#include <string.h>
+#include "intf/util.h"
+#include "intf/symbol.h"
+#include "intf/absyn.h"
+#include "intf/errormsg.h"
+#include "y.tab.h"
+
+extern int yylineno;
+
+int charPos=1;
+#define MAX_LINE 512
+char curr_line[MAX_LINE];
+
+int yywrap(void)
+{
+ charPos=1;
+ return 1;
+}
+
+
+void adjust(void)
+{
+ EM_tokPos=charPos;
+ charPos+=yyleng;
+}
+
+%}
+
+%option yylineno
+
+DIGITS [0-9]+
+IDENT [a-zA-Z_][a-zA-Z0-9_]*
+STR ["][^"]*["]
+COMMENT [/][*]([^*]|[*][^/])*[*][/]
+
+%%
+^(.*)\n {
+    strncpy(curr_line, yytext, MAX_LINE - 1);
+    curr_line[MAX_LINE - 1] = '\0';
+
+    if (char* p = strchr(curr_line, '\n')
+        , p)
+      *p = '\0';
+    
+    REJECT;
+}
+
+
+" "	 {adjust(); continue;}
+\n	 {adjust(); EM_newline(); continue;}
+\t   {adjust(); continue;}
+
+{COMMENT} {adjust(); continue;}
+
+":=" {adjust(); return ASSIGN;}
+
+","	 {adjust(); return COMMA;}
+":"	 {adjust(); return COLON;}
+";"	 {adjust(); return SEMICOLON;}
+"("	 {adjust(); return LPAREN;}
+")"	 {adjust(); return RPAREN;}
+"["	 {adjust(); return LBRACK;}
+"]"	 {adjust(); return RBRACK;}
+"{"	 {adjust(); return LBRACE;}
+"}"	 {adjust(); return RBRACE;}
+
+"." {adjust(); return DOT;}
+"+" {adjust(); return PLUS;}
+"-" {adjust(); return MINUS;}
+"*" {adjust(); return TIMES;}
+"/" {adjust(); return DIVIDE;}
+
+"=" {adjust(); return EQ;}
+"<>" {adjust(); return NEQ;}
+"<=" {adjust(); return LE;}
+">=" {adjust(); return GE;}
+"<" {adjust(); return LT;}
+">" {adjust(); return GT;}
+
+"&" {adjust(); return AND;}
+"|" {adjust(); return OR;}
+
+let {adjust(); return LET;}
+type {adjust(); return TYPE;}
+var {adjust(); return VAR;}
+while {adjust(); return WHILE;}
+for {adjust(); return FOR;}
+nil {adjust(); return NIL;}
+to {adjust(); return TO;}
+break {adjust(); return BREAK;}
+in {adjust(); return IN;}
+end {adjust(); return END;}
+function {adjust(); return FUNCTION;}
+array {adjust(); return ARRAY;}
+if {adjust(); return IF;}
+then {adjust(); return THEN;}
+else {adjust(); return ELSE;}
+"do" {adjust(); return DO;}
+of {adjust(); return OF;}
+
+{STR} {adjust(); yylval.sval=strdup(yytext); return STRING;}
+{DIGITS}	 {adjust(); yylval.ival=atoi(yytext); return INT;}
+{IDENT} {adjust(); yylval.sval = strdup(yytext); return ID;}
+
+.	 {adjust(); EM_error(EM_tokPos,"illegal token");}
+
+%%
+
