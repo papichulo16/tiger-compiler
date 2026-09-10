@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
   if (!root)
     return -1;
 
-  //fd = fopen("./out", "w+");
+  fd = fopen("./out", "w+");
   pr_exp(fd, root, 10);
   fclose(fd);
 

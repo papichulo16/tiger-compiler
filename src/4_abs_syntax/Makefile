@@ -23,5 +23,5 @@ lex.yy.c: tiger.lex
 	lex tiger.lex
 
 clean: 
-	rm -f abs_syn *.o y.tab.c y.tab.h lex.yy.c
+	rm -f abs_syn *.o y.tab.c y.tab.h lex.yy.c out
 
