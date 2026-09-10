@@ -10,7 +10,9 @@
 #define TABSIZE 127
 
 typedef struct binder_ *binder;
+
 struct binder_ {void *key; void *value; binder next; void *prevtop;};
+
 struct TAB_table_ {
   binder table[TABSIZE];
   void *top;
@@ -46,6 +48,7 @@ void TAB_enter(TAB_table t, void *key, void *value)
 {int index;
  assert(t && key);
  index = ((unsigned)key) % TABSIZE;
+ printf("idx %d\n", index);
  t->table[index] = Binder(key, value,t->table[index], t->top);
  t->top = key;
 }
@@ -77,12 +80,18 @@ void TAB_dump(TAB_table t, void (*show)(void *key, void *value)) {
   void *k = t->top;
   int index = ((unsigned)k) % TABSIZE;
   binder b = t->table[index];
+
   if (b==NULL) return;
+
   t->table[index]=b->next;
   t->top=b->prevtop;
+
   show(b->key,b->value);
   TAB_dump(t,show);
+
   assert(t->top == b->prevtop && t->table[index]==b->next);
+
   t->top=k;
   t->table[index]=b;
 }
+

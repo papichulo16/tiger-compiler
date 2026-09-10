@@ -47,6 +47,7 @@ COMMENT [/][*]([^*]|[*][^/])*[*][/]
 
 " "	 {adjust(); continue;}
 \n	 {adjust(); EM_newline(); continue;}
+\t   {adjust(); continue;}
 
 {COMMENT} {adjust(); continue;}
 

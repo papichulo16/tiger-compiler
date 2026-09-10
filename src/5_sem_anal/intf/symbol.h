@@ -26,7 +26,7 @@ void S_enter(S_table t, S_symbol sym, void *value);
 
 /* Look up the most recent binding of "sym" in "t", or return NULL
  *    if sym is unbound. */
-void *S_look(S_table t, S_symbol sym);
+void* S_look(S_table t, S_symbol sym);
 
 /* Start a new "scope" in "t".  Scopes are nested. */
 void S_beginScope(S_table t);
