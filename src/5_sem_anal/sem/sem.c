@@ -7,14 +7,15 @@
 #include "errormsg.h"
 #include "parse.h"
 #include "prabsyn.h"
-#include "sem.h"
 #include "types.h"
+#include "sem.h"
 
 void sem_trans_decl(A_decList dl);
 void sem_trans_fundecl(A_fundecList fl);
 void sem_trans_nametyl(A_nametyList nl);
+void sem_trans_fieldl(A_fieldList fl);
 
-Ty_ty sem_trans_ty(A_ty t);
+void sem_trans_field(A_field f);
 void sem_trans_fundec(A_fundec f);
 void sem_trans_namety(A_namety n);
 void sem_trans_dec(A_dec d);
@@ -33,6 +34,19 @@ void sem_trans_decl(A_decList dl) {
   sem_trans_decl(dl->tail);
 
   free(dl);
+}
+
+void sem_trans_fieldl(A_fieldList fl) {
+
+  if (!fl)
+    return;
+
+  if (fl->head)
+    sem_trans_field(fl->head);
+
+  sem_trans_fieldl(fl->tail);
+
+  free(fl);
 }
 
 void sem_trans_fundecl(A_fundecList fl) {
@@ -61,21 +75,40 @@ void sem_trans_nametyl(A_nametyList nl) {
   free(nl);
 }
 
-void sem_trans_fundec(A_fundec f) {}
+void sem_trans_field(A_field f) {
+
+  if (!f)
+    return;
+
+
+}
+
+void sem_trans_fundec(A_fundec f) {
+
+  if (!f)
+    return;
+
+  // handle
+  S_symbol n = f->name;
+  S_symbol r = f->result;
+  A_fieldList p = f->params; 
+
+  sem_trans_exp(f->body);
+
+  free(f);
+}
 
 void sem_trans_namety(A_namety n) {
 
   if (!n)
     return;
 
-  Ty_ty t = sem_trans_ty(n->ty);
-
-  S_enter(g_symtab, n->name, t);
+  // handle
+  if (!sem_sym_ty_add(g_symtab, n->name, n->ty))
+    printf("semantic error adding type\n");
 
   free(n);
 }
-
-Ty_ty sem_trans_ty(A_ty t) {}
 
 void sem_trans_dec(A_dec d) {
 
@@ -90,6 +123,18 @@ void sem_trans_dec(A_dec d) {
       break;
 
     case A_varDec:
+
+      // handle
+      S_symbol v = d->u.var.var;
+      Ty_ty t = sem_sym_type_get(g_symtab, d->u.var.typ);
+
+      sem_trans_exp(d->u.var.init);
+
+      if (!t || sem_sym_inuse(g_symtab, v))
+        break;
+
+      //S_enter(g_symtab, v, )
+
       break;
 
     case A_typeDec:
