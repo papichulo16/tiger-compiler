@@ -23,15 +23,13 @@ A_exp parse(string fname)
 
   if (yyparse() || EM_err_count) {
 
-    fprintf(stdout, "parse failed\n");
+    //fprintf(stdout, "parse failed\n");
 
     return NULL;
   } 
 
-  fprintf(stdout, "parse passed\n");
+  //fprintf(stdout, "parse passed\n");
 
   return absyn_root;
 }
-
-
 

@@ -31,6 +31,60 @@ static IntList intList(int i, IntList rest)
 
 static IntList linePos=NULL;
 
+typedef struct {
+  int pos;
+  int linenum;
+  char* line;
+
+  void* next;
+} srcline_t;
+
+srcline_t* srcline_head = NULL;
+
+void EM_new_srcline (int pos, char* line) {
+
+  srcline_t* t = malloc(sizeof(*t));
+
+  t->pos = pos;
+  t->linenum = lineNum;
+  t->line = line;
+  t->next = srcline_head;
+
+  srcline_head = t;
+}
+
+srcline_t* EM_srcline(int pos) {
+
+  srcline_t* cur = srcline_head;
+
+  for (; cur ; cur = (srcline_t *)cur->next) {
+
+    if (!cur->next)
+      return cur;
+
+    if (((srcline_t *) cur->next)->pos < pos && pos > cur->pos)
+      return cur->next;
+  }
+
+  return NULL;
+}
+
+void EM_semantic_error(int pos, char* msg, ...) {
+
+  va_list ap;
+  srcline_t* line = EM_srcline(pos);
+
+  EM_err_count += 1;
+
+  if (fileName) fprintf(stderr,"%s:",fileName);
+  if (line) fprintf(stderr,"%d.%d: \"%s\"\n\t", line->linenum, line->pos, line->line);
+
+  va_start(ap,msg);
+  vfprintf(stderr, msg, ap);
+  va_end(ap);
+  fprintf(stderr,"\n");
+}
+
 void EM_newline(void)
 {lineNum++;
  linePos = intList(EM_tokPos, linePos);

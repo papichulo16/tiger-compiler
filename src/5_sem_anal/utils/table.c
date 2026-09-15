@@ -48,7 +48,6 @@ void TAB_enter(TAB_table t, void *key, void *value)
 {int index;
  assert(t && key);
  index = ((unsigned)key) % TABSIZE;
- printf("idx %d\n", index);
  t->table[index] = Binder(key, value,t->table[index], t->top);
  t->top = key;
 }

@@ -9,6 +9,7 @@
 #include "prabsyn.h"
 #include "types.h"
 #include "sem.h"
+#include "sem_sym.h"
 
 void sem_trans_decl(A_decList dl);
 void sem_trans_fundecl(A_fundecList fl);
@@ -93,7 +94,11 @@ void sem_trans_fundec(A_fundec f) {
   S_symbol r = f->result;
   A_fieldList p = f->params; 
 
+  if (!sem_sym_fun_add(f->pos, g_symtab, n, r, p))
+    printf("semantic error adding function\n");
+
   sem_trans_exp(f->body);
+  S_endScope(g_symtab);
 
   free(f);
 }
@@ -126,14 +131,12 @@ void sem_trans_dec(A_dec d) {
 
       // handle
       S_symbol v = d->u.var.var;
-      Ty_ty t = sem_sym_type_get(g_symtab, d->u.var.typ);
+      S_symbol t = d->u.var.typ;
+
+      if (!sem_sym_var_add(d->pos, g_symtab, v, t))
+        printf("semantic error adding var\n");
 
       sem_trans_exp(d->u.var.init);
-
-      if (!t || sem_sym_inuse(g_symtab, v))
-        break;
-
-      //S_enter(g_symtab, v, )
 
       break;
 
@@ -227,6 +230,12 @@ void sem_trans_prog(A_exp e) {
   }
 }
 
+void comp_err() {
+
+  printf("Compilation error\n");
+  exit(-1);
+}
+
 int main(int argc, char** argv) {
 
   A_exp root;
@@ -241,13 +250,16 @@ int main(int argc, char** argv) {
   root = parse(argv[1]);
 
   if (!root)
-    return -1;
+    comp_err();
 
   fd = fopen("./out", "w+");
   pr_exp(fd, root, 10);
   fclose(fd);
 
   sem_trans_prog(root);
+
+  if (EM_err_count)
+    comp_err();
 
   return 0;
 }

@@ -43,6 +43,8 @@ COMMENT [/][*]([^*]|[*][^/])*[*][/]
         , p)
       *p = '\0';
     
+    EM_new_srcline(EM_tokPos, strdup(curr_line));
+
     REJECT;
 }
 
