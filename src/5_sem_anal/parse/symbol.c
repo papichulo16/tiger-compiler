@@ -66,13 +66,57 @@ void S_beginScope(S_table t)
 { S_enter(t,&marksym,NULL);
 }
 
-void S_endScope(S_table t)
-{S_symbol s;
-  do s=TAB_pop(t);
-  while (s != &marksym);
+void min_show(S_symbol sym, void *binding) {
+
+  int t = -1;
+  char* ty;
+
+  if (binding)
+    t = *(char *) binding;
+
+  switch (t) {
+
+    case 0: 
+      ty = "TY";
+      break;
+    case 1: 
+      ty = "FUN";
+      break;
+    case 2: 
+      ty = "VAR";
+      break;
+
+    default: 
+      ty = "N/A";
+      break;
+  }
+  
+  printf("'%s' type %s\n", S_name(sym), ty);
 }
 
 void S_dump(S_table t, void (*show)(S_symbol sym, void *binding)) {
   TAB_dump(t, (void (*)(void *, void *)) show);
+}
+
+void S_endScope(S_table t)
+{
+  S_symbol s;
+
+#ifdef DEBUG_SEM
+
+  printf("scope before:\n");
+  S_dump(t, min_show);
+  putchar('\n');
+#endif
+
+  do s=TAB_pop(t);
+  while (s != &marksym);
+
+#ifdef DEBUG_SEM
+
+  printf("scope after:\n");
+  S_dump(t, min_show);
+  putchar('\n');
+#endif
 }
 

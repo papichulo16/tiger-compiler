@@ -15,6 +15,22 @@ void* sem_sym_get(S_table symtab, S_symbol name) {
   return S_look(symtab, name);
 }
 
+bool sem_sym_is_fun(S_table symtab, S_symbol name) {
+  symtab_id_t* id = (symtab_id_t *) sem_sym_get(symtab, name);
+
+  return id ? id->kind == ST_FUN : false;
+}
+
+Ty_fieldList sem_sym_params_get(S_table symtab, S_symbol name) {
+
+  symtab_id_t* id = sem_sym_get(symtab, name);
+
+  if (!id)
+    return NULL;
+
+  return id->params;
+}
+
 Ty_ty sem_sym_type_get(S_table symtab, S_symbol name) {
 
   symtab_id_t* id = sem_sym_get(symtab, name);
@@ -22,17 +38,17 @@ Ty_ty sem_sym_type_get(S_table symtab, S_symbol name) {
   if (!id)
     return NULL;
 
-  return id->u.ty;
+  return id->ty;
 }
 
 Ty_ty handle_ty_sym(S_table symtab, S_symbol ty) {
 
   char* s = S_name(ty);
 
-  if (!strcmp(s, "int") || !strcmp(s, "INT"))
+  if ((!strcmp(s, "int") || !strcmp(s, "INT")) && strlen(s) == 3)
     return Ty_Int();
 
-  if (!strcmp(s, "string") || !strcmp(s, "STRING"))
+  if ((!strcmp(s, "string") || !strcmp(s, "STRING")) && strlen(s) == 6)
     return Ty_String();
 
   return sem_sym_type_get(symtab, ty);
@@ -68,6 +84,29 @@ void handle_ty_params(int pos, S_table symtab, A_fieldList fl) {
   handle_ty_params(pos, symtab, fl->tail);   
 }
 
+Ty_field fl_field_get(Ty_fieldList fl, S_symbol s) {
+  
+  if (!fl)
+    return NULL;
+
+  if (!strcmp(S_name(fl->head->name), S_name(s)) && 
+      strlen(S_name(fl->head->name)) == strlen(S_name(s)))
+    return fl->head;
+
+  return fl_field_get(fl->tail, s);
+}
+
+Ty_ty sem_sym_record_ty_get(Ty_ty rec, S_symbol sub) {
+
+  Ty_field f;
+
+  if (!rec || rec->kind != Ty_record)
+    return NULL;
+
+  return f = fl_field_get(rec->u.record, sub), 
+         f ? f->ty : NULL;
+}
+
 Ty_ty parse_ty(S_table symtab, A_ty ty) {
 
   Ty_ty t;
@@ -101,12 +140,20 @@ Ty_ty parse_ty(S_table symtab, A_ty ty) {
   }
 }
 
+bool sem_sym_ty_eq(Ty_ty t1, Ty_ty t2) {
+
+  if (!t1 || !t2)
+    return NULL;
+
+  return t1 == t2;
+}
+
 // should return true if current scope is using it 
 // false if its not, even if it was defined in a parent scope
 // havent done that yet
 bool sem_sym_inuse(S_table symtab, S_symbol sym) { return S_look(symtab, sym) != NULL; }
 
-bool sem_sym_var_add(int pos, S_table symtab, S_symbol varname, S_symbol var_ty) {
+Ty_ty sem_sym_var_add(int pos, S_table symtab, S_symbol varname, S_symbol var_ty) {
 
   Ty_ty t = Ty_Void();
   symtab_id_t* id;
@@ -114,30 +161,28 @@ bool sem_sym_var_add(int pos, S_table symtab, S_symbol varname, S_symbol var_ty)
   if (sem_sym_inuse(symtab, varname)) {
 
     EM_semantic_error(pos, "variable '%s' is already defined", S_name(varname));
-    return false;
+    return NULL;
   }
 
   if (!var_ty)
     goto dec;
 
-  if (!handle_ty_sym(symtab, var_ty)) {
+  if (t = handle_ty_sym(symtab, var_ty), !t) {
 
     EM_semantic_error(pos, "type '%s' does not exist", S_name(var_ty));
-    return false;
-  } 
-
-  if (t = handle_ty_sym(symtab, var_ty), !t)
-    return false;
+    return NULL;
+  }
 
 dec:
   id = malloc(sizeof(*id));
 
   id->kind = ST_VAR;
-  id->u.ty = t;
+  id->ty = t;
+  id->params = NULL;
 
   S_enter(symtab, varname, id);
 
-  return true;
+  return t;
 }
 
 bool sem_sym_fun_add(int pos, S_table symtab, S_symbol fname, S_symbol res, A_fieldList params) {
@@ -154,20 +199,17 @@ bool sem_sym_fun_add(int pos, S_table symtab, S_symbol fname, S_symbol res, A_fi
   if (!res)
     goto dec;
 
-  if (!handle_ty_sym(symtab, res)) {
-
+  if (t = handle_ty_sym(symtab, res), !t) {
     EM_semantic_error(pos, "type '%s' does not exist", S_name(res));
     return false;
   }
 
-  if (t = handle_ty_sym(symtab, res), !t)
-    return false;
-
 dec:
   id = malloc(sizeof(*id));
 
-  id->kind = ST_VAR;
-  id->u.ty = t;
+  id->kind = ST_FUN;
+  id->ty = t;
+  id->params = handle_ty_record(pos, symtab, params);
 
   S_enter(symtab, fname, id);
 
@@ -189,7 +231,8 @@ bool sem_sym_ty_add (S_table symtab, S_symbol tyname, A_ty ty) {
   id = malloc(sizeof(*id));
 
   id->kind = ST_TY;
-  id->u.ty = t;
+  id->ty = t;
+  id->params = NULL;
 
   S_enter(symtab, tyname, id);
 
