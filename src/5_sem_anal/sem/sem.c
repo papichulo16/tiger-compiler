@@ -236,6 +236,23 @@ void cmp_call_params(int pos, Ty_fieldList rec, Ty_tyList call) {
   cmp_call_params(pos, rec->tail, call->tail);
 }
 
+void rec_def_test(int pos, Ty_ty t, A_efieldList fields) {
+
+  Ty_ty t1;
+  Ty_ty t2;
+
+  if (!fields || !fields->head)
+    return;
+
+  t1 = sem_sym_record_ty_get(t, fields->head->name);
+  t2 = sem_trans_exp(fields->head->exp);
+
+  if (!sem_sym_ty_eq(t1, t2))
+    EM_semantic_error(pos, "invalid type for record");
+
+  rec_def_test(pos, t, fields->tail);
+}
+
 Ty_ty sem_trans_exp(A_exp e) {
 
   Ty_ty t = Ty_Void();
@@ -294,6 +311,10 @@ Ty_ty sem_trans_exp(A_exp e) {
       break;
 
     case A_recordExp:
+
+      t = sem_sym_type_get(g_symtab, e->u.record.typ);
+      rec_def_test(e->pos, t, e->u.record.fields);
+
       break;
 
     case A_seqExp:
@@ -368,7 +389,7 @@ Ty_ty sem_trans_exp(A_exp e) {
         break;
       }
 
-      if (!sem_sym_ty_eq(t, t2))
+      if (!sem_sym_ty_eq(t->u.array, t2))
         EM_semantic_error(e->pos, "arr init val not of valid type");
 
       break;
