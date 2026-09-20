@@ -25,6 +25,21 @@ void adjust(void)
  charPos+=yyleng;
 }
 
+void adjust_comment(void)
+{
+ int start;
+ int i;
+
+ adjust();
+ start=EM_tokPos;
+
+ for (i=0; i<yyleng; i++)
+  if (yytext[i]=='\n')
+   {EM_tokPos=start+i; EM_newline();}
+
+ EM_tokPos=start;
+}
+
 %}
 
 %option yylineno
@@ -35,6 +50,9 @@ STR ["][^"]*["]
 COMMENT [/][*]([^*]|[*][^/])*[*][/]
 
 %%
+
+{COMMENT} {adjust_comment(); continue;}
+
 ^(.*)\n {
     strncpy(curr_line, yytext, MAX_LINE - 1);
     curr_line[MAX_LINE - 1] = '\0';
@@ -42,8 +60,6 @@ COMMENT [/][*]([^*]|[*][^/])*[*][/]
     if (char* p = strchr(curr_line, '\n')
         , p)
       *p = '\0';
-    
-    EM_new_srcline(EM_tokPos, strdup(curr_line));
 
     REJECT;
 }
@@ -52,8 +68,6 @@ COMMENT [/][*]([^*]|[*][^/])*[*][/]
 " "	 {adjust(); continue;}
 \n	 {adjust(); EM_newline(); continue;}
 \t   {adjust(); continue;}
-
-{COMMENT} {adjust(); continue;}
 
 ":=" {adjust(); return ASSIGN;}
 

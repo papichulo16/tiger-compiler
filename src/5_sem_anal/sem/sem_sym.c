@@ -145,7 +145,7 @@ bool sem_sym_ty_eq(Ty_ty t1, Ty_ty t2) {
   if (!t1 || !t2)
     return NULL;
 
-  printf("ty eq:\n");
+  printf("ty eq: ");
   Ty_print(t1);
   printf(" -- ");
   Ty_print(t2);

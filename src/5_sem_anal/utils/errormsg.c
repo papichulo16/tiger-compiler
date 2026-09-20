@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include "util.h"
 #include "errormsg.h"
 
@@ -31,58 +32,69 @@ static IntList intList(int i, IntList rest)
 
 static IntList linePos=NULL;
 
-typedef struct {
-  int pos;
-  int linenum;
-  char* line;
+static bool em_pos_resolve(int pos, int* line, int* col)
+{
+  IntList lines = linePos;
+  int num = lineNum;
 
-  void* next;
-} srcline_t;
-
-srcline_t* srcline_head = NULL;
-
-void EM_new_srcline (int pos, char* line) {
-
-  srcline_t* t = malloc(sizeof(*t));
-
-  t->pos = pos;
-  t->linenum = lineNum;
-  t->line = line;
-  t->next = srcline_head;
-
-  srcline_head = t;
-}
-
-srcline_t* EM_srcline(int pos) {
-
-  srcline_t* cur = srcline_head;
-
-  for (; cur ; cur = (srcline_t *)cur->next) {
-
-    if (!cur->next)
-      return cur;
-
-    if (((srcline_t *) cur->next)->pos < pos && pos > cur->pos)
-      return cur->next;
+  while (lines && lines->i >= pos) {
+    lines = lines->rest;
+    num--;
   }
 
-  return NULL;
+  if (lines) {
+    *line = num;
+    *col = pos - lines->i;
+  }
+
+  return lines != NULL;
 }
 
-void EM_semantic_error(int pos, char* msg, ...) {
+static char* em_line_read(int num)
+{
+  FILE* f = fopen(fileName, "r");
+  char* buf = NULL;
+  char* ret = NULL;
+  size_t cap = 0;
+  int i;
 
+  if (!f) goto out;
+
+  for (i = 1; i <= num; i++)
+    if (getline(&buf, &cap, f) == -1) goto out;
+
+  buf[strcspn(buf, "\r\n")] = '\0';
+  ret = buf;
+  buf = NULL;
+
+out:
+  free(buf);
+  if (f) fclose(f);
+  return ret;
+}
+
+void EM_semantic_error(int pos, char* msg, ...)
+{
   va_list ap;
-  srcline_t* line = EM_srcline(pos);
+  int line = 0;
+  int col = 0;
+  char* text = NULL;
+  bool found = em_pos_resolve(pos, &line, &col);
 
   EM_err_count += 1;
 
-  if (fileName) fprintf(stderr,"%s:",fileName);
-  if (line) fprintf(stderr,"%d.%d: \"%s\"\n\t", line->linenum, line->pos, line->line);
+  if (found) text = em_line_read(line);
 
-  va_start(ap,msg);
+  if (fileName) fprintf(stderr, "%s:", fileName);
+  if (found) fprintf(stderr, "%d.%d: ", line, col);
+  if (text) fprintf(stderr, "\"%s\"\n\t", text);
+
+  va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
-  fprintf(stderr,"\n");
+  fprintf(stderr, "\n");
+
+  free(text);
 }
 
 void EM_newline(void)

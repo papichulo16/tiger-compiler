@@ -292,6 +292,7 @@ Ty_ty sem_trans_exp(A_exp e) {
         break;
       }
 
+      t = sem_sym_type_get(g_symtab, e->u.call.func);
       tl = sem_trans_expl(e->u.call.args); 
       cmp_call_params(e->pos, sem_sym_params_get(g_symtab, e->u.call.func), tl);
 
