@@ -53,7 +53,8 @@ static void pr_var(FILE *out, A_var v, int d) {
 
 static char str_oper[][12] = {
    "PLUS", "MINUS", "TIMES", "DIVIDE", 
-   "EQUAL", "NOTEQUAL", "LESSTHAN", "LESSEQ", "GREAT", "GREATEQ"};
+   "EQUAL", "NOTEQUAL", "LESSTHAN", "LESSEQ", "GREAT", "GREATEQ",
+   "OR", "AND"};
  
 static void pr_oper(FILE *out, A_oper d) {
   fprintf(out, "%s", str_oper[d]);
@@ -62,6 +63,12 @@ static void pr_oper(FILE *out, A_oper d) {
 /* Print A_var types. Indent d spaces. */
 void pr_exp(FILE *out, A_exp v, int d) {
  indent(out, d);
+
+ if (!v) {
+   fprintf(out, "noExp()");
+   return;
+ }
+
  switch (v->kind) {
  case A_varExp:
    fprintf(out, "varExp(\n"); pr_var(out, v->u.var, d+1); 
