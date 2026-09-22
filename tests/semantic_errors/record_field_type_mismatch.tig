@@ -1,0 +1,6 @@
+/* semantic error: record field initialized with the wrong type */
+let
+	type person = {name: string, age: int}
+in
+	person {name="Bob", age="old"}
+end

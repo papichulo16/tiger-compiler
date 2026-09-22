@@ -1,0 +1,2 @@
+/* semantic error: for loop bounds are not integers */
+for i := "start" to "end" do ()

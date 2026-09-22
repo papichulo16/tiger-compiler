@@ -1,0 +1,6 @@
+/* semantic error: assigning a value of the wrong type to a variable */
+let
+	var x := 5
+in
+	x := "now a string"
+end

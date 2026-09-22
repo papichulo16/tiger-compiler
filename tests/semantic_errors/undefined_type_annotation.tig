@@ -1,0 +1,6 @@
+/* semantic error: variable declared with an undefined type */
+let
+	var x : nosuchtype := 5
+in
+	x
+end

@@ -1,0 +1,6 @@
+/* parser error: two expressions placed next to each other with no operator or separator */
+let
+	var x := 5 6
+in
+	x
+end

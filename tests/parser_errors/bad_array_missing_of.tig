@@ -1,0 +1,6 @@
+/* parser error: array type declaration missing the 'of' keyword */
+let
+	type intArray = array int
+in
+	0
+end

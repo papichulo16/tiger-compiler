@@ -1,0 +1,6 @@
+/* semantic error: function called with too few arguments */
+let
+	function add(a: int, b: int): int = a + b
+in
+	add(1)
+end

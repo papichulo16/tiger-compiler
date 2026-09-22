@@ -1,0 +1,6 @@
+/* parser error: reserved keyword used as an identifier */
+let
+	var while := 10
+in
+	while
+end

@@ -1,0 +1,6 @@
+/* parser error: binary operator with no right-hand operand */
+let
+	var x := 5 +
+in
+	x
+end

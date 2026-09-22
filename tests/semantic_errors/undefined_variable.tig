@@ -1,0 +1,6 @@
+/* semantic error: use of an undeclared variable */
+let
+	var x := 10
+in
+	x + y
+end

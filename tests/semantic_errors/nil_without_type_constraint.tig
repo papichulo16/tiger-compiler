@@ -1,0 +1,6 @@
+/* semantic error: nil assigned to a variable without a record type constraint */
+let
+	var x := nil
+in
+	x
+end

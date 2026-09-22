@@ -1,0 +1,6 @@
+/* parser error: record field declaration missing a colon */
+let
+	type point = {x int, y: int}
+in
+	0
+end

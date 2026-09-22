@@ -1,0 +1,2 @@
+/* parser error: while expression missing the 'do' keyword */
+while 1 > 0 10

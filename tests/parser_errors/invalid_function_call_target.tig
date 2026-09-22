@@ -1,0 +1,2 @@
+/* parser error: applying call syntax to an integer literal */
+3(4)

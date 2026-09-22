@@ -1,0 +1,2 @@
+/* parser error: for expression missing the 'to' keyword */
+for i := 1 10 do i

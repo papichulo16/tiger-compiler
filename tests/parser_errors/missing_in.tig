@@ -1,0 +1,5 @@
+/* parser error: let expression missing the 'in' keyword */
+let
+	var x := 5
+	x + 1
+end

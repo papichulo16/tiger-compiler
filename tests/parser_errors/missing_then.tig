@@ -1,0 +1,2 @@
+/* parser error: if expression missing the 'then' keyword */
+if 5 > 3 10 else 20

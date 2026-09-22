@@ -1,0 +1,7 @@
+/* parser error: array subscript closed with the wrong bracket type */
+let
+	type intArray = array of int
+	var a := intArray [5] of 0
+in
+	a[0)
+end

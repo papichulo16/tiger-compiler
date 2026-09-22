@@ -1,0 +1,7 @@
+/* semantic error: array index is not an integer */
+let
+	type intArray = array of int
+	var a := intArray [5] of 0
+in
+	a["zero"]
+end

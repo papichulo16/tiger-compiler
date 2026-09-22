@@ -1,0 +1,6 @@
+/* semantic error: function body type does not match its declared return type */
+let
+	function f(a: int): int = "not an int"
+in
+	f(5)
+end

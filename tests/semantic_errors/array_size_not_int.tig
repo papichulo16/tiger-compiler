@@ -1,0 +1,6 @@
+/* semantic error: array size expression is not an integer */
+let
+	type intArray = array of int
+in
+	intArray ["five"] of 0
+end

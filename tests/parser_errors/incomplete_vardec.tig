@@ -1,0 +1,6 @@
+/* parser error: variable declaration missing ':=' and an initializer */
+let
+	var x
+in
+	x
+end
