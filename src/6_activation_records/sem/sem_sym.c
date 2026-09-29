@@ -148,7 +148,7 @@ Ty_fieldList handle_ty_record(int pos, S_table symtab, A_fieldList fl) {
   return Ty_FieldList(f, handle_ty_record(pos, symtab, fl->tail));
 }
 
-void handle_ty_params(trans t, S_table symtab, A_fieldList fl) {
+void handle_ty_params(trans_t* t, S_table symtab, A_fieldList fl) {
 
   if (!fl)
     return;
@@ -279,7 +279,7 @@ bool sem_sym_inuse(S_table t, S_symbol sym) {
   return false;
 }
 
-void sem_sym_var_add(int pos, trans tr, S_table symtab, S_symbol varname, Ty_ty ty, bool param) {
+void sem_sym_var_add(int pos, trans_t* tr, S_table symtab, S_symbol varname, Ty_ty ty, bool param) {
 
   symtab_id_t* id;
 
@@ -320,9 +320,9 @@ bool sem_sym_fun_add(int pos, S_table symtab, S_symbol fname, S_symbol res, A_fi
   return t != NULL;
 }
 
-trans sem_sym_fun_scope_begin(trans t, S_table symtab, A_fieldList params) {
+trans_t* sem_sym_fun_scope_begin(trans_t* t, S_table symtab, A_fieldList params) {
 
-  trans tmp = trans_new_link(t);
+  trans_t* tmp = trans_new_link(t);
 
   S_beginScope(symtab);
   handle_ty_params(tmp, symtab, params);

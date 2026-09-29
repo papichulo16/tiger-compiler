@@ -12,21 +12,21 @@
 #include "sem_sym.h"
 #include "trans.h"
 
-void sem_trans_decl(trans t, A_decList dl);
-void sem_trans_fundecl(trans t, A_fundecList fl);
+void sem_trans_decl(trans_t* t, A_decList dl);
+void sem_trans_fundecl(trans_t* t, A_fundecList fl);
 void sem_trans_nametyl(A_nametyList nl);
 void sem_trans_nametyl_chk(A_nametyList nl);
 void sem_trans_fieldl(A_fieldList fl);
-Ty_tyList sem_trans_expl(trans t, A_expList el);
+Ty_tyList sem_trans_expl(trans_t* t, A_expList el);
 
 void sem_trans_field(A_field f);
-void sem_trans_fundec(trans t, A_fundec f);
+void sem_trans_fundec(trans_t* t, A_fundec f);
 void sem_trans_namety(A_namety n);
-void sem_trans_dec(trans t, A_dec d);
-Ty_ty sem_trans_exp(trans t, A_exp e);
+void sem_trans_dec(trans_t* t, A_dec d);
+Ty_ty sem_trans_exp(trans_t* t, A_exp e);
 
 S_table g_symtab = NULL;
-trans g_trans = NULL;
+trans_t* g_trans = NULL;
 
 void free_global(void** p) {
 
@@ -42,7 +42,7 @@ bool oper_is_cmp(A_oper o) {
   return o == A_eqOp || o == A_neqOp || o == A_ltOp || o == A_leOp || o == A_gtOp || o == A_geOp; 
 }
 
-Ty_tyList sem_trans_expl(trans tr, A_expList el) {
+Ty_tyList sem_trans_expl(trans_t* tr, A_expList el) {
 
   Ty_ty t;
   Ty_tyList tyl = NULL;
@@ -113,7 +113,7 @@ void sem_dec_merge(A_decList dl) {
   sem_dec_merge(dl);
 }
 
-void sem_trans_decl(trans t, A_decList dl) {
+void sem_trans_decl(trans_t* t, A_decList dl) {
 
   if (!dl)
     return;
@@ -168,7 +168,7 @@ void sem_trans_fundecl_head(A_fundecList all, A_fundecList cur) {
   sem_trans_fundecl_head(all, cur->tail);
 }
 
-void sem_trans_fundecl(trans t, A_fundecList fl) {
+void sem_trans_fundecl(trans_t* t, A_fundecList fl) {
 
   if (!fl)
     return;
@@ -251,10 +251,10 @@ void sem_trans_field(A_field f) {
 
 }
 
-void sem_trans_fundec(trans t, A_fundec f) {
+void sem_trans_fundec(trans_t* t, A_fundec f) {
 
   Ty_ty res;
-  trans tmp;
+  trans_t* tmp;
 
   if (!f)
     return;
@@ -281,7 +281,7 @@ void sem_trans_namety(A_namety n) {
   free(n);
 }
 
-void sem_trans_vardec(trans tr, A_dec d) {
+void sem_trans_vardec(trans_t* tr, A_dec d) {
 
   Ty_ty ty = NULL;
   Ty_ty init = sem_trans_exp(tr, d->u.var.init);
@@ -308,7 +308,7 @@ void sem_trans_vardec(trans tr, A_dec d) {
   sem_sym_var_add(d->pos, tr, g_symtab, d->u.var.var, ty, false);
 }
 
-void sem_trans_dec(trans t, A_dec d) {
+void sem_trans_dec(trans_t* t, A_dec d) {
 
   if (!d)
     return;
@@ -334,7 +334,7 @@ void sem_trans_dec(trans t, A_dec d) {
   free(d);
 }
 
-Ty_ty sem_trans_var(trans tr, A_var v) {
+Ty_ty sem_trans_var(trans_t* tr, A_var v) {
 
   Ty_ty t = NULL;
 
@@ -394,7 +394,7 @@ void cmp_call_params(int pos, Ty_fieldList rec, Ty_tyList call) {
   cmp_call_params(pos, rec->tail, call->tail);
 }
 
-void rec_def_test(int pos, trans tr, Ty_fieldList rec, A_efieldList fields) {
+void rec_def_test(int pos, trans_t* tr, Ty_fieldList rec, A_efieldList fields) {
 
   Ty_ty t;
 
@@ -437,14 +437,14 @@ bool oper_types_ok(A_oper o, Ty_ty l, Ty_ty r) {
   return a->kind == Ty_int || a->kind == Ty_string;
 }
 
-Ty_ty sem_trans_exp(trans tr, A_exp e) {
+Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
 
   Ty_ty t = Ty_Void();
   Ty_ty t2 = NULL;
   Ty_ty t3 = NULL;
   Ty_tyList tl = NULL;
 
-  trans t_temp = NULL;
+  trans_t* t_temp = NULL;
 
   if (!e)
     return t;

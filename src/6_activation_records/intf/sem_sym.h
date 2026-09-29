@@ -33,9 +33,9 @@ Ty_ty sem_sym_record_ty_get(Ty_ty rec, S_symbol sub);
 void sem_sym_ty_dec(S_table symtab, S_symbol tyname);
 bool sem_sym_ty_def(S_table symtab, S_symbol tyname, A_ty ty);
 bool sem_sym_ty_cycle_chk(int pos, S_table symtab, S_symbol tyname);
-void sem_sym_var_add(int pos, trans t, S_table symtab, S_symbol varname, Ty_ty ty, bool param);
+void sem_sym_var_add(int pos, trans_t* t, S_table symtab, S_symbol varname, Ty_ty ty, bool param);
 bool sem_sym_fun_add(int pos, S_table symtab, S_symbol fname, S_symbol res, A_fieldList params);
 void sem_sym_std_add(S_table symtab);
 
 // starts a scope but doesnt end it lol, as long as it works
-trans sem_sym_fun_scope_begin(trans t, S_table symtab, A_fieldList params);
+trans_t* sem_sym_fun_scope_begin(trans_t* t, S_table symtab, A_fieldList params);
