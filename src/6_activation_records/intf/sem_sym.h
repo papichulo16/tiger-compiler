@@ -33,7 +33,7 @@ Ty_ty sem_sym_record_ty_get(Ty_ty rec, S_symbol sub);
 void sem_sym_ty_dec(S_table symtab, S_symbol tyname);
 bool sem_sym_ty_def(S_table symtab, S_symbol tyname, A_ty ty);
 bool sem_sym_ty_cycle_chk(int pos, S_table symtab, S_symbol tyname);
-void sem_sym_var_add(trans t, S_table symtab, S_symbol varname, Ty_ty ty, bool param);
+void sem_sym_var_add(int pos, trans t, S_table symtab, S_symbol varname, Ty_ty ty, bool param);
 bool sem_sym_fun_add(int pos, S_table symtab, S_symbol fname, S_symbol res, A_fieldList params);
 void sem_sym_std_add(S_table symtab);
 

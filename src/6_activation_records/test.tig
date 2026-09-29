@@ -1,5 +1,21 @@
 let
-  type inasdf = {a : int, b : int} 
-  type arrarrlist = {a : inasdf}
+  type balls = int
+  type arr = array of int
+  type inasdf = {a : int, b : balls, c : balls} 
+  type arrarrlist = {a : inasdf, b : arr}
+
+  type person = {
+    name: string,
+    age: int,
+    height: int
+  }
+
+  var p := person {
+      name = "Luis",
+      age = 21,
+      height = 180
+  }
+
+  function f(a : int, b : balls) : int = a + b
 
 in end

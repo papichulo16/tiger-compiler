@@ -9,16 +9,48 @@
 #include "trans.h"
 
 struct trans_t {
-  F_frame f;
+  frame_t* frame;
+  trans static_link;
 };
 
-trans trans_new() { return NULL; }
+trans trans_new() {
 
-trans trans_new_link(trans parent) { return NULL; }
+  trans t = calloc(1, sizeof(struct trans_t));
 
-void trans_free(trans* t) {}
+  // new frame
 
-void trans_add_formal(trans t, S_symbol s) {}
+  return t;
+}
 
-void trans_add_local(trans t, S_symbol s, size_t sz) {}
+trans trans_new_link(trans parent) {
+
+  trans t = trans_new();
+  t->static_link = parent;
+
+  return t;
+}
+
+void trans_free(trans* t) {
+
+  trans tr = *t;
+
+  if (!tr)
+    return;
+
+  if (tr->frame)
+    free(tr->frame);
+
+  free(tr);
+  *t = NULL;
+}
+
+void trans_add_formal(trans t, S_symbol s) {
+
+  printf("formal var '%s'\n", S_name(s));
+}
+
+void trans_add_local(trans t, S_symbol s, size_t sz) {
+
+  printf("local var '%s' with size %d\n", S_name(s), sz);
+}
 

@@ -305,7 +305,7 @@ void sem_trans_vardec(trans tr, A_dec d) {
       EM_semantic_error(d->pos, "bad exp type and var type");
   }
 
-  sem_sym_var_add(tr, g_symtab, d->u.var.var, ty, false);
+  sem_sym_var_add(d->pos, tr, g_symtab, d->u.var.var, ty, false);
 }
 
 void sem_trans_dec(trans t, A_dec d) {
@@ -585,7 +585,7 @@ Ty_ty sem_trans_exp(trans tr, A_exp e) {
       S_beginScope(g_symtab);
       t_temp = trans_new_link(tr);
 
-      sem_sym_var_add(t_temp, g_symtab, e->u.forr.var, Ty_Int(), false);
+      sem_sym_var_add(e->pos, t_temp, g_symtab, e->u.forr.var, Ty_Int(), false);
 
       if (!sem_sym_ty_eq(Ty_Void(), sem_trans_exp(t_temp, e->u.forr.body)))
         EM_semantic_error(e->pos, "for body must not return a value");

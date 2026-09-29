@@ -87,6 +87,13 @@ Ty_ty sem_sym_ty_get(int pos, S_table symtab, S_symbol name) {
 size_t ty_get_sz(int pos, S_table symtab, S_symbol s) {
 
   symtab_id_t* id = sem_sym_get(symtab, s);
+  char* str = S_name(s);
+
+  if ((!strcmp(str, "int") || !strcmp(str, "INT")) && strlen(str) == 3)
+    return sizeof(void *);
+
+  if ((!strcmp(str, "string") || !strcmp(str, "STRING")) && strlen(str) == 6)
+    return sizeof(void *);
 
   if (!id)
     return 0;
@@ -95,6 +102,17 @@ size_t ty_get_sz(int pos, S_table symtab, S_symbol s) {
     EM_semantic_error(pos, "type '%s' not defined before namety definition", S_name(s));
 
   return id->sz;
+}
+
+size_t ty_sz(int pos, S_table symtab, Ty_ty ty) {
+
+  if (!ty)
+    return 0;
+
+  if (ty->kind == Ty_name)
+    return ty_get_sz(pos, symtab, ty->u.name.sym);
+
+  return sizeof(void *); // int, string (and nil)
 }
 
 // horrible horrible horrible solution i know
@@ -138,7 +156,7 @@ void handle_ty_params(trans t, S_table symtab, A_fieldList fl) {
   if (sem_sym_inuse(symtab, fl->head->name))
     EM_semantic_error(fl->head->pos, "duplicate parameter name '%s'", S_name(fl->head->name));
 
-  sem_sym_var_add(t, symtab, fl->head->name, handle_ty_sym(symtab, fl->head->typ), true);
+  sem_sym_var_add(fl->head->pos, t, symtab, fl->head->name, handle_ty_sym(symtab, fl->head->typ), true);
 
   handle_ty_params(t, symtab, fl->tail);
 }
@@ -261,10 +279,9 @@ bool sem_sym_inuse(S_table t, S_symbol sym) {
   return false;
 }
 
-void sem_sym_var_add(trans tr, S_table symtab, S_symbol varname, Ty_ty ty, bool param) {
+void sem_sym_var_add(int pos, trans tr, S_table symtab, S_symbol varname, Ty_ty ty, bool param) {
 
   symtab_id_t* id;
-  Ty_ty t = Ty_Void();
 
   id = malloc(sizeof(*id));
 
@@ -276,10 +293,8 @@ void sem_sym_var_add(trans tr, S_table symtab, S_symbol varname, Ty_ty ty, bool 
 
   if (param) 
     trans_add_formal(tr, varname);
-  else {
-
-    trans_add_local(tr, varname, sizeof(void *));
-  }
+  else
+    trans_add_local(tr, varname, ty_sz(pos, symtab, ty));
 }
 
 void fun_enter(S_table symtab, S_symbol fname, Ty_ty res, Ty_fieldList params) {
