@@ -84,6 +84,31 @@ Ty_ty sem_sym_ty_get(int pos, S_table symtab, S_symbol name) {
   return t;
 }
 
+size_t ty_get_sz(int pos, S_table symtab, S_symbol s) {
+
+  symtab_id_t* id = sem_sym_get(symtab, s);
+
+  if (!id)
+    return 0;
+
+  if (id->sz == 0)
+    EM_semantic_error(pos, "type '%s' not defined before namety definition", S_name(s));
+
+  return id->sz;
+}
+
+// horrible horrible horrible solution i know
+// im tired
+size_t record_sz = 0;
+
+size_t record_sz_get() {
+
+  size_t tmp = record_sz;
+
+  record_sz = 0;
+  return tmp;
+}
+
 Ty_fieldList handle_ty_record(int pos, S_table symtab, A_fieldList fl) {
 
   Ty_ty ty;
@@ -93,6 +118,9 @@ Ty_fieldList handle_ty_record(int pos, S_table symtab, A_fieldList fl) {
     return NULL;
 
   ty = handle_ty_sym(symtab, fl->head->typ);
+
+  // may have to handle strings differently in the future
+  record_sz += (ty == Ty_String() || ty == Ty_Int()) ? sizeof(void *) : ty_get_sz(pos, symtab, fl->head->typ);
 
   if (!ty)
     EM_semantic_error(pos, "record type '%s' does not exist", S_name(fl->head->typ));
@@ -110,7 +138,7 @@ void handle_ty_params(trans t, S_table symtab, A_fieldList fl) {
   if (sem_sym_inuse(symtab, fl->head->name))
     EM_semantic_error(fl->head->pos, "duplicate parameter name '%s'", S_name(fl->head->name));
 
-  sem_sym_var_add(t, symtab, fl->head->name, handle_ty_sym(symtab, fl->head->typ));
+  sem_sym_var_add(t, symtab, fl->head->name, handle_ty_sym(symtab, fl->head->typ), true);
 
   handle_ty_params(t, symtab, fl->tail);
 }
@@ -140,36 +168,52 @@ Ty_ty sem_sym_record_ty_get(Ty_ty rec, S_symbol sub) {
          f ? f->ty : NULL;
 }
 
-Ty_ty parse_ty(S_table symtab, A_ty ty) {
+struct typarse_t {
+  Ty_ty t;
+  size_t sz;
+};
 
-  Ty_ty t = NULL;
+struct typarse_t* parse_ty(S_table symtab, A_ty ty) {
+
+  struct typarse_t* tp = calloc(1, sizeof(struct typarse_t));
+
+  if (!tp) {
+    fprintf(stderr, "Malloc error");
+    exit(-1);
+  }
 
   if (!ty)
-    return NULL;
+    goto end;
 
   switch (ty->kind) {
 
     case A_nameTy:
 
-      t = sem_sym_ty_get(ty->pos, symtab, ty->u.name);
+      tp->t = sem_sym_ty_get(ty->pos, symtab, ty->u.name);
+      tp->sz += ty_get_sz(ty->pos, symtab, ty->u.name);
+
       break;
 
     case A_recordTy:
 
-      t = Ty_Record(handle_ty_record(ty->pos, symtab, ty->u.record));
+      record_sz_get(); // dont delete, clear shit solution
+      tp->t = Ty_Record(handle_ty_record(ty->pos, symtab, ty->u.record));
+      tp->sz = record_sz_get();
       break;
 
     case A_arrayTy:
 
-      t = sem_sym_ty_get(ty->pos, symtab, ty->u.array);
+      tp->t = sem_sym_ty_get(ty->pos, symtab, ty->u.array);
+      tp->sz += ty_get_sz(ty->pos, symtab, ty->u.array);
 
-      if (t)
-        t = Ty_Array(t);
+      if (tp->t)
+        tp->t = Ty_Array(tp->t);
 
       break;
   }
 
-  return t;
+end:
+  return tp;
 }
 
 bool sem_sym_ty_eq(Ty_ty t1, Ty_ty t2) {
@@ -217,7 +261,7 @@ bool sem_sym_inuse(S_table t, S_symbol sym) {
   return false;
 }
 
-void sem_sym_var_add(trans tr, S_table symtab, S_symbol varname, Ty_ty ty) {
+void sem_sym_var_add(trans tr, S_table symtab, S_symbol varname, Ty_ty ty, bool param) {
 
   symtab_id_t* id;
   Ty_ty t = Ty_Void();
@@ -229,7 +273,13 @@ void sem_sym_var_add(trans tr, S_table symtab, S_symbol varname, Ty_ty ty) {
   id->params = NULL;
 
   S_enter(symtab, varname, id);
-  trans_add_formal(tr, varname);
+
+  if (param) 
+    trans_add_formal(tr, varname);
+  else {
+
+    trans_add_local(tr, varname, sizeof(void *));
+  }
 }
 
 void fun_enter(S_table symtab, S_symbol fname, Ty_ty res, Ty_fieldList params) {
@@ -278,12 +328,15 @@ void sem_sym_ty_dec(S_table symtab, S_symbol tyname) {
 
 bool sem_sym_ty_def(S_table symtab, S_symbol tyname, A_ty ty) {
 
-  Ty_ty t = parse_ty(symtab, ty);
+  struct typarse_t* tp = parse_ty(symtab, ty);
   symtab_id_t* id = sem_sym_get(symtab, tyname);
 
-  id->ty->u.name.ty = t;
+  id->ty->u.name.ty = tp->t;
+  id->sz = tp->sz;
 
-  return t != NULL;
+  free(tp);
+
+  return tp->t != NULL;
 }
 
 bool sem_sym_ty_cycle_chk(int pos, S_table symtab, S_symbol tyname) {

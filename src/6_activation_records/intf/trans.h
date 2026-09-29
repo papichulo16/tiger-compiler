@@ -8,4 +8,5 @@ trans trans_new_link(trans parent);
 void trans_free(trans* t);
 
 void trans_add_formal(trans t, S_symbol s);
+void trans_add_local(trans t, S_symbol s, size_t sz);
 

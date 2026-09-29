@@ -1,0 +1,5 @@
+let
+  type inasdf = {a : int, b : int} 
+  type arrarrlist = {a : inasdf}
+
+in end
