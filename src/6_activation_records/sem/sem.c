@@ -10,21 +10,29 @@
 #include "types.h"
 #include "sem.h"
 #include "sem_sym.h"
+#include "trans.h"
 
-void sem_trans_decl(A_decList dl);
-void sem_trans_fundecl(A_fundecList fl);
+void sem_trans_decl(trans t, A_decList dl);
+void sem_trans_fundecl(trans t, A_fundecList fl);
 void sem_trans_nametyl(A_nametyList nl);
 void sem_trans_nametyl_chk(A_nametyList nl);
 void sem_trans_fieldl(A_fieldList fl);
-Ty_tyList sem_trans_expl(A_expList el);
+Ty_tyList sem_trans_expl(trans t, A_expList el);
 
 void sem_trans_field(A_field f);
-void sem_trans_fundec(A_fundec f);
+void sem_trans_fundec(trans t, A_fundec f);
 void sem_trans_namety(A_namety n);
-void sem_trans_dec(A_dec d);
-Ty_ty sem_trans_exp(A_exp e);
+void sem_trans_dec(trans t, A_dec d);
+Ty_ty sem_trans_exp(trans t, A_exp e);
 
 S_table g_symtab = NULL;
+trans g_trans = NULL;
+
+void free_global(void** p) {
+
+  free(*p);
+  *p = NULL;
+}
 
 bool oper_is_math(A_oper o) {
   return o == A_plusOp || o == A_minusOp || o == A_timesOp || o == A_divideOp;
@@ -34,7 +42,7 @@ bool oper_is_cmp(A_oper o) {
   return o == A_eqOp || o == A_neqOp || o == A_ltOp || o == A_leOp || o == A_gtOp || o == A_geOp; 
 }
 
-Ty_tyList sem_trans_expl(A_expList el) {
+Ty_tyList sem_trans_expl(trans tr, A_expList el) {
 
   Ty_ty t;
   Ty_tyList tyl = NULL;
@@ -42,8 +50,8 @@ Ty_tyList sem_trans_expl(A_expList el) {
   if (!el)
     return NULL;
 
-  t = sem_trans_exp(el->head);
-  tyl = Ty_TyList(t, sem_trans_expl(el->tail));
+  t = sem_trans_exp(tr, el->head);
+  tyl = Ty_TyList(t, sem_trans_expl(tr, el->tail));
 
   free(el);
   return tyl;
@@ -69,6 +77,7 @@ void sem_tyl_free(Ty_tyList tl) {
   free(tl);
 }
 
+// fixing some shitty parser decisions
 void sem_dec_merge(A_decList dl) {
 
   A_decList nx = dl->tail;
@@ -104,7 +113,7 @@ void sem_dec_merge(A_decList dl) {
   sem_dec_merge(dl);
 }
 
-void sem_trans_decl(A_decList dl) {
+void sem_trans_decl(trans t, A_decList dl) {
 
   if (!dl)
     return;
@@ -112,10 +121,10 @@ void sem_trans_decl(A_decList dl) {
   if (dl->head) {
 
     sem_dec_merge(dl);
-    sem_trans_dec(dl->head);
+    sem_trans_dec(t, dl->head);
   }
 
-  sem_trans_decl(dl->tail);
+  sem_trans_decl(t, dl->tail);
 
   free(dl);
 }
@@ -159,7 +168,7 @@ void sem_trans_fundecl_head(A_fundecList all, A_fundecList cur) {
   sem_trans_fundecl_head(all, cur->tail);
 }
 
-void sem_trans_fundecl(A_fundecList fl) {
+void sem_trans_fundecl(trans t, A_fundecList fl) {
 
   if (!fl)
     return;
@@ -167,9 +176,9 @@ void sem_trans_fundecl(A_fundecList fl) {
   sem_trans_fundecl_head(fl, fl);
 
   if (fl->head) 
-    sem_trans_fundec(fl->head);
+    sem_trans_fundec(t, fl->head);
 
-  sem_trans_fundecl(fl->tail);
+  sem_trans_fundecl(t, fl->tail);
 
   free(fl);
 }
@@ -242,22 +251,23 @@ void sem_trans_field(A_field f) {
 
 }
 
-void sem_trans_fundec(A_fundec f) {
+void sem_trans_fundec(trans t, A_fundec f) {
 
   Ty_ty res;
+  trans tmp;
 
   if (!f)
     return;
 
   res = sem_sym_type_get(g_symtab, f->name);
 
-  sem_sym_fun_scope_begin(g_symtab, f->params);
+  tmp = sem_sym_fun_scope_begin(t, g_symtab, f->params);
 
-  if (!sem_sym_ty_eq(res, sem_trans_exp(f->body)))
+  if (!sem_sym_ty_eq(res, sem_trans_exp(tmp, f->body)))
     EM_semantic_error(f->pos, "function body type does not match its return type");
 
   S_endScope(g_symtab);
-
+  trans_free(&tmp);
   free(f);
 }
 
@@ -271,10 +281,10 @@ void sem_trans_namety(A_namety n) {
   free(n);
 }
 
-void sem_trans_vardec(A_dec d) {
+void sem_trans_vardec(trans tr, A_dec d) {
 
   Ty_ty ty = NULL;
-  Ty_ty init = sem_trans_exp(d->u.var.init);
+  Ty_ty init = sem_trans_exp(tr, d->u.var.init);
 
   if (!d->u.var.typ) {
 
@@ -295,10 +305,10 @@ void sem_trans_vardec(A_dec d) {
       EM_semantic_error(d->pos, "bad exp type and var type");
   }
 
-  sem_sym_var_add(g_symtab, d->u.var.var, ty);
+  sem_sym_var_add(tr, g_symtab, d->u.var.var, ty);
 }
 
-void sem_trans_dec(A_dec d) {
+void sem_trans_dec(trans t, A_dec d) {
 
   if (!d)
     return;
@@ -307,12 +317,12 @@ void sem_trans_dec(A_dec d) {
 
     case A_functionDec:
 
-      sem_trans_fundecl(d->u.function);
+      sem_trans_fundecl(t, d->u.function);
       break;
 
     case A_varDec:
 
-      sem_trans_vardec(d);
+      sem_trans_vardec(t, d);
       break;
 
     case A_typeDec:
@@ -324,7 +334,7 @@ void sem_trans_dec(A_dec d) {
   free(d);
 }
 
-Ty_ty sem_trans_var(A_var v) {
+Ty_ty sem_trans_var(trans tr, A_var v) {
 
   Ty_ty t = NULL;
 
@@ -340,16 +350,16 @@ Ty_ty sem_trans_var(A_var v) {
 
     case A_fieldVar:
 
-      t = sem_trans_var(v->u.field.var);
+      t = sem_trans_var(tr, v->u.field.var);
       t = sem_sym_record_ty_get(t, v->u.field.sym);
       break;
 
     case A_subscriptVar:
 
-      if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(v->u.subscript.exp)))
+      if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, v->u.subscript.exp)))
         EM_semantic_error(v->pos, "invalid index type");
 
-      t = sem_sym_ty_actual(sem_trans_var(v->u.subscript.var));
+      t = sem_sym_ty_actual(sem_trans_var(tr, v->u.subscript.var));
       t = t && t->kind == Ty_array ? t->u.array : NULL;
       break;
   }
@@ -384,7 +394,7 @@ void cmp_call_params(int pos, Ty_fieldList rec, Ty_tyList call) {
   cmp_call_params(pos, rec->tail, call->tail);
 }
 
-void rec_def_test(int pos, Ty_fieldList rec, A_efieldList fields) {
+void rec_def_test(int pos, trans tr, Ty_fieldList rec, A_efieldList fields) {
 
   Ty_ty t;
 
@@ -396,14 +406,14 @@ void rec_def_test(int pos, Ty_fieldList rec, A_efieldList fields) {
     return;
   }
 
-  t = sem_trans_exp(fields->head->exp);
+  t = sem_trans_exp(tr, fields->head->exp);
 
   if (!rec)
     EM_semantic_error(pos, "too much record field amount");
   else if (rec->head->name != fields->head->name || !sem_sym_ty_eq(rec->head->ty, t))
     EM_semantic_error(pos, "invalid type for record");
 
-  rec_def_test(pos, rec ? rec->tail : NULL, fields->tail);
+  rec_def_test(pos, tr, rec ? rec->tail : NULL, fields->tail);
 
   free(fields->head);
   free(fields);
@@ -427,12 +437,14 @@ bool oper_types_ok(A_oper o, Ty_ty l, Ty_ty r) {
   return a->kind == Ty_int || a->kind == Ty_string;
 }
 
-Ty_ty sem_trans_exp(A_exp e) {
+Ty_ty sem_trans_exp(trans tr, A_exp e) {
 
   Ty_ty t = Ty_Void();
   Ty_ty t2 = NULL;
   Ty_ty t3 = NULL;
   Ty_tyList tl = NULL;
+
+  trans t_temp = NULL;
 
   if (!e)
     return t;
@@ -441,7 +453,7 @@ Ty_ty sem_trans_exp(A_exp e) {
 
     case A_varExp:
 
-      t = sem_trans_var(e->u.var);
+      t = sem_trans_var(tr, e->u.var);
       break;
 
     case A_nilExp:
@@ -461,7 +473,7 @@ Ty_ty sem_trans_exp(A_exp e) {
 
     case A_callExp:
       
-      tl = sem_trans_expl(e->u.call.args); 
+      tl = sem_trans_expl(tr, e->u.call.args); 
 
       if (!sem_sym_is_fun(g_symtab, e->u.call.func)) {
 
@@ -481,8 +493,8 @@ Ty_ty sem_trans_exp(A_exp e) {
 
     case A_opExp:
 
-      t = sem_trans_exp(e->u.op.left);
-      t2 = sem_trans_exp(e->u.op.right);
+      t = sem_trans_exp(tr, e->u.op.left);
+      t2 = sem_trans_exp(tr, e->u.op.right);
 
       if (!oper_types_ok(e->u.op.oper, t, t2))
         EM_semantic_error(e->pos, "invalid operation on type");
@@ -502,13 +514,13 @@ Ty_ty sem_trans_exp(A_exp e) {
         t2 = NULL;
       }
 
-      rec_def_test(e->pos, t2 ? t2->u.record : NULL, e->u.record.fields);
+      rec_def_test(e->pos, tr, t2 ? t2->u.record : NULL, e->u.record.fields);
 
       break;
 
     case A_seqExp:
 
-      tl = sem_trans_expl(e->u.seq);
+      tl = sem_trans_expl(tr, e->u.seq);
       t = sem_tyl_last(tl);
       sem_tyl_free(tl);
 
@@ -516,8 +528,8 @@ Ty_ty sem_trans_exp(A_exp e) {
 
     case A_assignExp:
 
-      t = sem_trans_var(e->u.assign.var);
-      t2 = sem_trans_exp(e->u.assign.exp);
+      t = sem_trans_var(tr, e->u.assign.var);
+      t2 = sem_trans_exp(tr, e->u.assign.exp);
 
       if (!sem_sym_ty_eq(t, t2))
         EM_semantic_error(e->pos, "invalid types for expression");
@@ -528,10 +540,10 @@ Ty_ty sem_trans_exp(A_exp e) {
 
     case A_ifExp:
 
-      if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(e->u.iff.test)))
+      if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, e->u.iff.test)))
         EM_semantic_error(e->pos, "invalid if test type");
 
-      t2 = sem_trans_exp(e->u.iff.then);
+      t2 = sem_trans_exp(tr, e->u.iff.then);
 
       if (!e->u.iff.elsee) {
 
@@ -541,7 +553,7 @@ Ty_ty sem_trans_exp(A_exp e) {
         break;
       }
 
-      t3 = sem_trans_exp(e->u.iff.elsee);
+      t3 = sem_trans_exp(tr, e->u.iff.elsee);
       t = t2;
 
       if (!sem_sym_ty_eq(t2, t3))
@@ -554,29 +566,31 @@ Ty_ty sem_trans_exp(A_exp e) {
 
     case A_whileExp:
 
-      if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(e->u.whilee.test)))
+      if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, e->u.whilee.test)))
         EM_semantic_error(e->pos, "invalid while test type");
 
-      if (!sem_sym_ty_eq(Ty_Void(), sem_trans_exp(e->u.whilee.body)))
+      if (!sem_sym_ty_eq(Ty_Void(), sem_trans_exp(tr, e->u.whilee.body)))
         EM_semantic_error(e->pos, "while body must not return a value");
 
       break;
 
     case A_forExp:
 
-      t2 = sem_trans_exp(e->u.forr.lo);
-      t3 = sem_trans_exp(e->u.forr.hi);
+      t2 = sem_trans_exp(tr, e->u.forr.lo);
+      t3 = sem_trans_exp(tr, e->u.forr.hi);
 
       if (!sem_sym_ty_eq(Ty_Int(), t2) || !sem_sym_ty_eq(Ty_Int(), t3))
         EM_semantic_error(e->pos, "invalid for loop lo/hi types");
 
       S_beginScope(g_symtab);
+      t_temp = trans_new_link(tr);
 
-      sem_sym_var_add(g_symtab, e->u.forr.var, Ty_Int());
+      sem_sym_var_add(t_temp, g_symtab, e->u.forr.var, Ty_Int());
 
-      if (!sem_sym_ty_eq(Ty_Void(), sem_trans_exp(e->u.forr.body)))
+      if (!sem_sym_ty_eq(Ty_Void(), sem_trans_exp(t_temp, e->u.forr.body)))
         EM_semantic_error(e->pos, "for body must not return a value");
 
+      trans_free(&t_temp);
       S_endScope(g_symtab);
 
       break;
@@ -587,10 +601,12 @@ Ty_ty sem_trans_exp(A_exp e) {
     case A_letExp:
 
       S_beginScope(g_symtab);
+      t_temp = trans_new_link(tr);
 
-      sem_trans_decl(e->u.let.decs);
-      t = sem_trans_exp(e->u.let.body);
+      sem_trans_decl(t_temp, e->u.let.decs);
+      t = sem_trans_exp(t_temp, e->u.let.body);
 
+      trans_free(&t_temp);
       S_endScope(g_symtab);
 
       break;
@@ -599,10 +615,10 @@ Ty_ty sem_trans_exp(A_exp e) {
 
       t = sem_sym_ty_get(e->pos, g_symtab, e->u.array.typ);
 
-      if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(e->u.array.size)))
+      if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, e->u.array.size)))
         EM_semantic_error(e->pos, "invalid size type");
 
-      t2 = sem_trans_exp(e->u.array.init);
+      t2 = sem_trans_exp(tr, e->u.array.init);
       t3 = sem_sym_ty_actual(t);
 
       if (!t3) 
@@ -629,15 +645,16 @@ void sem_trans_prog(A_exp e) {
     return;
 
   g_symtab = S_empty();
+  g_trans = trans_new();
+
   sem_sym_std_add(g_symtab);
 
-  sem_trans_exp(e);
+  sem_trans_exp(g_trans, e);
 
-  if (g_symtab) {
-
-    free(g_symtab);
-    g_symtab = NULL;
-  }
+  if (g_symtab)
+    free_global((void **) &g_symtab);
+  if (g_trans)
+    trans_free(&g_trans);
 }
 
 void comp_err() {

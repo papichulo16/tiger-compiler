@@ -5,6 +5,8 @@
 #include "errormsg.h"
 #include "symbol.h"
 #include "types.h"
+#include "temp.h"
+#include "frame.h"
 
 #ifdef X86_FRAME
 

@@ -11,6 +11,7 @@
 #include "prabsyn.h"
 #include "types.h"
 #include "sem_sym.h"
+#include "trans.h"
 
 void* sem_sym_get(S_table symtab, S_symbol name) {
   return S_look(symtab, name);
@@ -101,14 +102,17 @@ Ty_fieldList handle_ty_record(int pos, S_table symtab, A_fieldList fl) {
   return Ty_FieldList(f, handle_ty_record(pos, symtab, fl->tail));
 }
 
-void handle_ty_params(S_table symtab, A_fieldList fl) {
+void handle_ty_params(trans t, S_table symtab, A_fieldList fl) {
 
   if (!fl)
     return;
 
-  sem_sym_var_add(symtab, fl->head->name, handle_ty_sym(symtab, fl->head->typ));
+  if (sem_sym_inuse(symtab, fl->head->name))
+    EM_semantic_error(fl->head->pos, "duplicate parameter name '%s'", S_name(fl->head->name));
 
-  handle_ty_params(symtab, fl->tail);
+  sem_sym_var_add(t, symtab, fl->head->name, handle_ty_sym(symtab, fl->head->typ));
+
+  handle_ty_params(t, symtab, fl->tail);
 }
 
 Ty_field fl_field_get(Ty_fieldList fl, S_symbol s) {
@@ -213,7 +217,7 @@ bool sem_sym_inuse(S_table t, S_symbol sym) {
   return false;
 }
 
-void sem_sym_var_add(S_table symtab, S_symbol varname, Ty_ty ty) {
+void sem_sym_var_add(trans tr, S_table symtab, S_symbol varname, Ty_ty ty) {
 
   symtab_id_t* id;
   Ty_ty t = Ty_Void();
@@ -225,6 +229,7 @@ void sem_sym_var_add(S_table symtab, S_symbol varname, Ty_ty ty) {
   id->params = NULL;
 
   S_enter(symtab, varname, id);
+  trans_add_formal(tr, varname);
 }
 
 void fun_enter(S_table symtab, S_symbol fname, Ty_ty res, Ty_fieldList params) {
@@ -250,10 +255,14 @@ bool sem_sym_fun_add(int pos, S_table symtab, S_symbol fname, S_symbol res, A_fi
   return t != NULL;
 }
 
-void sem_sym_fun_scope_begin(S_table symtab, A_fieldList params) {
+trans sem_sym_fun_scope_begin(trans t, S_table symtab, A_fieldList params) {
+
+  trans tmp = trans_new_link(t);
 
   S_beginScope(symtab);
-  handle_ty_params(symtab, params);
+  handle_ty_params(tmp, symtab, params);
+
+  return tmp;
 }
 
 void sem_sym_ty_dec(S_table symtab, S_symbol tyname) {
