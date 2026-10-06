@@ -17,6 +17,18 @@ static void indent(FILE *out, int d) {
  for (i = 0; i <= d; i++) fprintf(out, " ");
 }
 
+static const char *safe_str(const char *s) {
+ return s ? s : "NULL";
+}
+
+static const char *safe_sym(S_symbol sym) {
+ return sym ? safe_str(S_name(sym)) : "NULL";
+}
+
+static const char *safe_temp(Temp_temp t) {
+ return t ? safe_str(Temp_look(Temp_name(), t)) : "NULL";
+}
+
 static char bin_oper[][12] = {
    "PLUS", "MINUS", "TIMES", "DIVIDE", 
    "AND", "OR", "LSHIFT", "RSHIFT", "ARSHIFT", "XOR"};
@@ -26,14 +38,16 @@ static char rel_oper[][12] = {
  
 static void pr_stm(FILE *out, T_stm stm, int d)
 {
-  switch (stm->kind) {
+  if (!stm) {
+    indent(out,d); fprintf(out, "NULL");
+  } else switch (stm->kind) {
   case T_SEQ:
     indent(out,d);
     fprintf(out, "SEQ(\n"); pr_stm(out, stm->u.SEQ.left,d+1);  fprintf(out, ",\n"); 
     pr_stm(out, stm->u.SEQ.right,d+1); fprintf(out, ")");
     break;
   case T_LABEL:
-    indent(out,d); fprintf(out, "LABEL %s", S_name(stm->u.LABEL));
+    indent(out,d); fprintf(out, "LABEL %s", safe_sym(stm->u.LABEL));
     break;
   case T_JUMP:
     indent(out,d); fprintf(out, "JUMP(\n"); pr_tree_exp(out, stm->u.JUMP.exp,d+1); 
@@ -43,8 +57,8 @@ static void pr_stm(FILE *out, T_stm stm, int d)
     indent(out,d); fprintf(out, "CJUMP(%s,\n", rel_oper[stm->u.CJUMP.op]);
     pr_tree_exp(out, stm->u.CJUMP.left,d+1); fprintf(out, ",\n"); 
     pr_tree_exp(out, stm->u.CJUMP.right,d+1); fprintf(out, ",\n");
-    indent(out,d+1); fprintf(out, "%s,", S_name(stm->u.CJUMP.tr));
-    fprintf(out, "%s", S_name(stm->u.CJUMP.fa)); fprintf(out, ")");
+    indent(out,d+1); fprintf(out, "%s,", safe_sym(stm->u.CJUMP.tr));
+    fprintf(out, "%s", safe_sym(stm->u.CJUMP.fa)); fprintf(out, ")");
     break;
   case T_MOVE:
     indent(out,d); fprintf(out, "MOVE(\n"); pr_tree_exp(out, stm->u.MOVE.dst,d+1); 
@@ -60,7 +74,9 @@ static void pr_stm(FILE *out, T_stm stm, int d)
 
 static void pr_tree_exp(FILE *out, T_exp exp, int d)
 {
-  switch (exp->kind) {
+  if (!exp) {
+    indent(out,d); fprintf(out, "NULL");
+  } else switch (exp->kind) {
   case T_BINOP:
     indent(out,d); fprintf(out, "BINOP(%s,\n", bin_oper[exp->u.BINOP.op]); 
     pr_tree_exp(out, exp->u.BINOP.left,d+1); fprintf(out, ",\n"); 
@@ -72,7 +88,7 @@ static void pr_tree_exp(FILE *out, T_exp exp, int d)
     break;
   case T_TEMP:
     indent(out,d); fprintf(out, "TEMP t%s", 
-			   Temp_look(Temp_name(), exp->u.TEMP));
+			   safe_temp(exp->u.TEMP));
     break;
   case T_ESEQ:
     indent(out,d); fprintf(out, "ESEQ(\n"); pr_stm(out, exp->u.ESEQ.stm,d+1); 
@@ -80,7 +96,7 @@ static void pr_tree_exp(FILE *out, T_exp exp, int d)
     pr_tree_exp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
     break;
   case T_NAME:
-    indent(out,d); fprintf(out, "NAME %s", S_name(exp->u.NAME));
+    indent(out,d); fprintf(out, "NAME %s", safe_sym(exp->u.NAME));
     break;
   case T_CONST:
     indent(out,d); fprintf(out, "CONST %d", exp->u.CONST);

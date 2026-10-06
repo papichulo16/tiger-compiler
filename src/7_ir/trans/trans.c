@@ -14,7 +14,7 @@
 struct trans_fun_t {
   S_symbol sym;
   Temp_label label;
-  trans_t* ir;
+  T_stm ir;
 };
 
 struct trans_t {
@@ -23,7 +23,25 @@ struct trans_t {
   tfl_t* fun_list;
 };
 
+tfl_t* all_funs = NULL;
+
 void print_trans(trans_t* t) { printStmList(stdout, T_StmList(t->ir, NULL)); }
+
+void trans_append_all_funs(trans_t* t) {
+
+  tfl_t* cur = all_funs;
+
+  if (!cur)
+    return;
+
+  for (trans_fun_t* c = cur->head; cur && c; cur = cur->tail, c = cur->head) {
+
+    t->ir = T_Seq(t->ir, c->ir);
+
+    if (!cur->tail)
+      break;
+  }
+}
 
 tfl_t* tfl(trans_fun_t* head, tfl_t* tail) {
 
@@ -84,7 +102,7 @@ static void tfl_free(tfl_t* l) {
     next = l->tail;
 
     if (l->head) {
-      trans_free(&l->head->ir);
+      //trans_free(&l->head->ir);
       free(l->head);
     }
 
@@ -105,10 +123,21 @@ void trans_free(trans_t** t) {
     return;
 
   frame_free(&tr->frame);
-  tfl_free(tr->fun_list);
+  //tfl_free(tr->fun_list);
 
   free(tr);
   *t = NULL;
+}
+
+void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name) {
+
+  trans_fun_t* f = trans_fun(name);
+  f->ir = T_Seq(T_Label(f->label), child->ir);
+
+  parent->fun_list = tfl(f, parent->fun_list);
+  all_funs = tfl(f, all_funs);
+
+  printf("added fun '%s'\n", S_name(name));
 }
 
 void trans_add_formal(trans_t* t, S_symbol s) {
@@ -121,13 +150,6 @@ void trans_add_local(trans_t* t, S_symbol s, size_t sz) {
 
   //printf("local var '%s' with size %d\n", S_name(s), sz);
   frame_add_local(t->frame, s, sz);
-}
-
-void tree_push(T_exp e) {
-
-  T_stm seq = NULL;
-
-
 }
 
 T_stm find_frame(trans_t* t, S_symbol s) {
@@ -163,20 +185,42 @@ void trans_var_access(trans_t* t, T_exp dst, S_symbol s) {
   }
 
   var = frame_local_get(frame, s);
-  stm = T_Seq(stm, T_Move(dst ,T_Mem(T_Binop(T_plus, T_Name(Temp_namedlabel("fp")), T_Const(var->stack_off)))));
+  stm = T_Seq(stm, T_Move(dst ,T_Mem(T_Binop(T_minus, T_Name(Temp_namedlabel("fp")), T_Const(var->stack_off)))));
   stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("fp")), T_Name(Temp_namedlabel("r5"))));
 
   t->frame = frame;
   t->ir = T_Seq(t->ir, stm);
 }
 
+T_stm stm_push(T_exp src) {
+
+  return T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))), 
+      T_Move(T_Mem(T_Name(Temp_namedlabel("sp"))), src));
+}
+
+T_stm stm_pop(T_exp dst) {
+
+  return T_Seq(T_Move(dst, T_Mem(T_Name(Temp_namedlabel("sp")))),
+      T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_plus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))));
+}
+
 void trans_prologue(trans_t* t) {
 
-  printf("stack size %d\n", t->frame->stack_size);
+  T_stm stm = stm_push(T_Name(Temp_namedlabel("fp")));
+
+  if (t->frame->stack_size)
+    stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(t->frame->stack_size))));
+
+  t->ir = T_Seq(stm, t->ir);
 }
 
 void trans_epilogue(trans_t* t) {
 
-  printf("end stack size %d\n", t->frame->stack_size);
+  T_stm stm = stm_pop(T_Name(Temp_namedlabel("fp")));
+
+  if (t->frame->stack_size)
+    stm = T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Name(Temp_namedlabel("fp"))) , stm);
+
+  t->ir = T_Seq(t->ir, stm);
 }
 

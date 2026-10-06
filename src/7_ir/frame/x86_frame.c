@@ -96,7 +96,7 @@ void frame_link(frame_t* child, frame_t* parent) {
     return;
 
   child->static_link = parent;
-  child->stack_size += WORD_SZ; // beginning of stack should hold prev frame
+  // child->stack_size += WORD_SZ; // beginning of stack should hold prev frame
 }
 
 void frame_add_formal(frame_t* frame, S_symbol sym) {
@@ -111,6 +111,8 @@ void frame_add_formal(frame_t* frame, S_symbol sym) {
 
   f->head = frame_access(sym, false, count);
   f->tail = fal(NULL, NULL);
+
+  frame->stack_size += WORD_SZ;
 }
 
 void frame_add_local(frame_t* frame, S_symbol sym, size_t sz) {

@@ -261,8 +261,13 @@ void sem_trans_fundec(trans_t* t, A_fundec f) {
   res = sem_sym_type_get(g_symtab, f->name);
   tmp = sem_sym_fun_scope_begin(t, g_symtab, f->params);
 
+  trans_prologue(tmp);
+
   if (!sem_sym_ty_eq(res, sem_trans_exp(tmp, f->body)))
     EM_semantic_error(f->pos, "function body type does not match its return type");
+
+  trans_epilogue(tmp);
+  trans_add_fun(t, tmp, f->name);
 
   S_endScope(g_symtab);
   trans_free(&tmp);
@@ -656,7 +661,8 @@ void sem_trans_prog(A_exp e) {
 
   sem_trans_exp(t, e);
 
-  //print_trans(t);
+  trans_append_all_funs(t);
+  print_trans(t);
 
   if (g_symtab)
     free_global((void **) &g_symtab);
