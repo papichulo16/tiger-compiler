@@ -21,7 +21,7 @@ struct T_stm_ {enum {T_SEQ, T_LABEL, T_JUMP, T_CJUMP, T_MOVE,
 		      Temp_label LABEL;
 		      struct {T_exp exp; Temp_labelList jumps;} JUMP;
 		      struct {T_relOp op; T_exp left, right;
-			      Temp_label true, false;} CJUMP;
+			      Temp_label tr, fa;} CJUMP;
 		      struct {T_exp dst, src;} MOVE;
 		      T_exp EXP;
 		    } u;
@@ -46,7 +46,7 @@ T_stm T_Seq(T_stm left, T_stm right);
 T_stm T_Label(Temp_label);
 T_stm T_Jump(T_exp exp, Temp_labelList labels);
 T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, 
-	      Temp_label true, Temp_label false);
+	      Temp_label tr, Temp_label fa);
 T_stm T_Move(T_exp, T_exp);
 T_stm T_Exp(T_exp);
 

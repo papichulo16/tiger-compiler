@@ -1,0 +1,12 @@
+let
+  function f(a:int) : int = (
+    let
+      var x := 10
+      function g(b:int) : int = a + b
+    in
+      a + g(2)
+    end
+  )
+in 
+  f(2)
+end
