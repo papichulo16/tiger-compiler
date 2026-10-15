@@ -138,7 +138,9 @@ Ty_fieldList handle_ty_record(int pos, S_table symtab, A_fieldList fl) {
   ty = handle_ty_sym(symtab, fl->head->typ);
 
   // may have to handle strings differently in the future
-  record_sz += (ty == Ty_String() || ty == Ty_Int()) ? WORD_SZ : ty_get_sz(pos, symtab, fl->head->typ);
+  // all fields are either pointers to another object or a normal field
+  record_sz += WORD_SZ;
+  // record_sz += (ty == Ty_String() || ty == Ty_Int()) ? WORD_SZ : ty_get_sz(pos, symtab, fl->head->typ);
 
   if (!ty)
     EM_semantic_error(pos, "record type '%s' does not exist", S_name(fl->head->typ));
@@ -186,12 +188,44 @@ Ty_ty sem_sym_record_ty_get(Ty_ty rec, S_symbol sub) {
          f ? f->ty : NULL;
 }
 
+frame_field_t* record_fields_build(A_fieldList fl, size_t off) {
+
+  frame_field_t* f = NULL;
+
+  if (!fl)
+    goto end;
+
+  // every field is a word, either the value itself or a pointer to it
+  f = frame_field(fl->head->name, off, record_fields_build(fl->tail, off + WORD_SZ));
+
+end:
+  return f;
+}
+
+bool sem_sym_record_field_off(Ty_ty rec, S_symbol sub, size_t* off) {
+
+  Ty_fieldList fl;
+  size_t cur = 0;
+
+  rec = sem_sym_ty_actual(rec);
+  fl = rec && rec->kind == Ty_record ? rec->u.record : NULL;
+
+  for (; fl && fl->head->name != sub; fl = fl->tail)
+    cur += WORD_SZ;
+
+  if (fl)
+    *off = cur;
+
+  return fl != NULL;
+}
+
 struct typarse_t {
   Ty_ty t;
   size_t sz;
+  frame_field_t* fields;
 };
 
-struct typarse_t* parse_ty(S_table symtab, A_ty ty) {
+struct typarse_t* parse_ty(trans_t* tr, S_table symtab, A_ty ty) {
 
   struct typarse_t* tp = calloc(1, sizeof(struct typarse_t));
 
@@ -209,6 +243,8 @@ struct typarse_t* parse_ty(S_table symtab, A_ty ty) {
 
       tp->t = sem_sym_ty_get(ty->pos, symtab, ty->u.name);
       tp->sz += ty_get_sz(ty->pos, symtab, ty->u.name);
+      // aliases get their own copy so every frame entry owns its fields
+      tp->fields = frame_fields_copy(trans_ty_fields_get(tr, ty->u.name));
 
       break;
 
@@ -217,6 +253,7 @@ struct typarse_t* parse_ty(S_table symtab, A_ty ty) {
       record_sz_get(); // dont delete, clear shit solution
       tp->t = Ty_Record(handle_ty_record(ty->pos, symtab, ty->u.record));
       tp->sz = record_sz_get();
+      tp->fields = record_fields_build(ty->u.record, 0);
       break;
 
     case A_arrayTy:
@@ -293,7 +330,8 @@ void sem_sym_var_add(int pos, trans_t* tr, S_table symtab, S_symbol varname, Ty_
   if (param) 
     trans_add_formal(tr, varname);
   else
-    trans_add_local(tr, varname, ty_sz(pos, symtab, ty));
+    //trans_add_local(tr, varname, ty_sz(pos, symtab, ty));
+    trans_add_local(tr, varname, WORD_SZ);
 }
 
 void fun_enter(S_table symtab, S_symbol fname, Ty_ty res, Ty_fieldList params) {
@@ -336,21 +374,27 @@ void sem_sym_ty_dec(S_table symtab, S_symbol tyname) {
   id->kind = ST_TY;
   id->ty = Ty_Name(tyname, NULL);
   id->params = NULL;
+  id->sz = 0;
 
   S_enter(symtab, tyname, id);
 }
 
-bool sem_sym_ty_def(S_table symtab, S_symbol tyname, A_ty ty) {
+bool sem_sym_ty_def(trans_t* tr, S_table symtab, S_symbol tyname, A_ty ty) {
 
-  struct typarse_t* tp = parse_ty(symtab, ty);
+  struct typarse_t* tp = parse_ty(tr, symtab, ty);
   symtab_id_t* id = sem_sym_get(symtab, tyname);
+  bool ok;
 
   id->ty->u.name.ty = tp->t;
   id->sz = tp->sz;
 
+  // always added, even with no fields, so it shadows outer types of the same name
+  trans_add_ty(tr, tyname, tp->fields);
+
+  ok = tp->t != NULL;
   free(tp);
 
-  return tp->t != NULL;
+  return ok;
 }
 
 bool sem_sym_ty_cycle_chk(int pos, S_table symtab, S_symbol tyname) {

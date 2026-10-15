@@ -14,7 +14,7 @@
 
 void sem_trans_decl(trans_t* t, A_decList dl);
 void sem_trans_fundecl(trans_t* t, A_fundecList fl);
-void sem_trans_nametyl(A_nametyList nl);
+void sem_trans_nametyl(trans_t* t, A_nametyList nl);
 void sem_trans_nametyl_chk(A_nametyList nl);
 void sem_trans_fieldl(A_fieldList fl);
 Ty_tyList sem_trans_expl(trans_t* t, A_expList el);
@@ -225,24 +225,24 @@ void sem_trans_nametyl_dec(A_nametyList all, A_nametyList cur) {
   sem_trans_nametyl_dec(all, cur->tail);
 }
 
-void sem_trans_nametyl_def(A_nametyList all, A_nametyList cur) {
+void sem_trans_nametyl_def(trans_t* t, A_nametyList all, A_nametyList cur) {
 
   if (!cur)
     return;
 
   if (!namety_dup(all, cur))
-    sem_sym_ty_def(g_symtab, cur->head->name, cur->head->ty);
+    sem_sym_ty_def(t, g_symtab, cur->head->name, cur->head->ty);
 
-  sem_trans_nametyl_def(all, cur->tail);
+  sem_trans_nametyl_def(t, all, cur->tail);
 }
 
-void sem_trans_nametyl(A_nametyList nl) {
+void sem_trans_nametyl(trans_t* t, A_nametyList nl) {
 
   if (!nl)
     return;
 
   sem_trans_nametyl_dec(nl, nl);
-  sem_trans_nametyl_def(nl, nl);
+  sem_trans_nametyl_def(t, nl, nl);
   sem_trans_nametyl_chk(nl);
 }
 
@@ -274,6 +274,9 @@ void sem_trans_fundec(trans_t* t, A_fundec f) {
 
   if (!f)
     return;
+
+  if (trans_is_stdlib_fun(f->name))
+    EM_semantic_error(f->pos, "cant use a stdlib fun name");
 
   res = sem_sym_type_get(g_symtab, f->name);
   tmp = sem_sym_fun_scope_begin(t, g_symtab, f->params);
@@ -326,7 +329,10 @@ void sem_trans_vardec(trans_t* tr, A_dec d) {
   }
 
   sem_sym_var_add(d->pos, tr, g_symtab, d->u.var.var, ty, false);
-  trans_var_store(tr, d->u.var.var);
+
+  // continue here, need to __alloc in exp and set the var to
+  // a ptr if its not a native type
+  trans_var_store(tr, d->u.var.var, ty); 
 }
 
 void sem_trans_dec(trans_t* t, A_dec d) {
@@ -348,7 +354,7 @@ void sem_trans_dec(trans_t* t, A_dec d) {
 
     case A_typeDec:
 
-      sem_trans_nametyl(d->u.type);
+      sem_trans_nametyl(t, d->u.type);
       break;
   }
 
@@ -358,6 +364,7 @@ void sem_trans_dec(trans_t* t, A_dec d) {
 Ty_ty sem_trans_var(trans_t* tr, A_var v) {
 
   Ty_ty t = NULL;
+  size_t off;
 
   if (!v)
     return NULL;
@@ -373,6 +380,10 @@ Ty_ty sem_trans_var(trans_t* tr, A_var v) {
     case A_fieldVar:
 
       t = sem_trans_var(tr, v->u.field.var);
+
+      if (sem_sym_record_field_off(t, v->u.field.sym, &off))
+        trans_field_access(tr, off);
+
       t = sem_sym_record_ty_get(t, v->u.field.sym);
       break;
 

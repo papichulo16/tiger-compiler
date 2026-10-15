@@ -100,6 +100,8 @@ T_stm stm_var_access(trans_t* t, S_symbol s) {
 
   var = frame_local_get(frame, s);
 
+  // THIS IS WRONG!!!!!!
+  // FIX LATER!!!
   if (!var) {
 
     // MAX_PARAMS+1 is old fp

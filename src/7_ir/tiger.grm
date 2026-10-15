@@ -167,6 +167,7 @@ rec
 expseq
     : exp { $$ =  $1; }
     | expseq SEMICOLON exp { $$ = A_SeqExp(EM_tokPos, A_ExpList($1, A_ExpList($3, NULL))); }
+    | expseq SEMICOLON { $$ = $1; }
     | error SEMICOLON exp { $$ = A_SeqExp(EM_tokPos, A_ExpList(NULL, A_ExpList($3, NULL))); }
     | { $$ = NULL; }
     ;

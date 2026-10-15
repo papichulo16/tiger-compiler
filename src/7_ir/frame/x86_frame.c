@@ -86,6 +86,7 @@ void frame_free(frame_t** f) {
 
   fal_free((*f)->formals);
   fal_free((*f)->locals);
+  frame_tys_free((*f)->tys);
 
   free(*f);
   *f = NULL;

@@ -4,8 +4,12 @@
 #include "temp.h"
 #include "tree.h"
 #include "frame.h"
+#include "errormsg.h"
 
 extern int WORD_SZ;
+
+#define TRANS_SEM_ERR_RET(...) \
+  do { if (EM_err_count) return __VA_ARGS__; } while (0)
 
 typedef struct trans_t trans_t;
 typedef struct trans_fun_t trans_fun_t;
@@ -40,13 +44,17 @@ Temp_label trans_fun_label(trans_t* t, S_symbol s);
 void trans_append_child(trans_t* parent, trans_t* child);
 void trans_add_formal(trans_t* t, S_symbol s);
 void trans_add_local(trans_t* t, S_symbol s, size_t sz);
+void trans_add_ty(trans_t* t, S_symbol s, frame_field_t* fields);
+frame_field_t* trans_ty_fields_get(trans_t* t, S_symbol s);
 
 void trans_prologue(trans_t* t);
 void trans_epilogue(trans_t* t);
 
 void trans_var_access(trans_t* t, S_symbol s);
+void trans_field_access(trans_t* t, size_t off);
 void trans_var_store(trans_t* t, S_symbol s);
 void trans_funcall_param(trans_t* t, int reg);
 void trans_funcall(trans_t* t, S_symbol fun);
+int trans_is_stdlib_fun(S_symbol s);
 void trans_int_exp(trans_t* t, int n);
 

@@ -16,11 +16,48 @@ tfl_t* all_funs = NULL;
 
 char* regs[] = { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9" };
 
-void print_trans(trans_t* t) { printStmList(stdout, T_StmList(t->ir, NULL)); }
+static char* g_stdlib_names[] = {
+  "print", "flush", "getchar", "ord", "chr",
+  "size", "substring", "concat", "not", "exit", "__ALLOC"
+};
+
+#define STDLIB_FUN_COUNT (sizeof(g_stdlib_names) / sizeof(*g_stdlib_names))
+
+static S_symbol g_stdlib_funs[STDLIB_FUN_COUNT];
+static int g_stdlib_init = 0;
+
+static void trans_stdlib_init(void) {
+
+  for (size_t i = 0; i < STDLIB_FUN_COUNT; i++)
+    g_stdlib_funs[i] = S_Symbol(g_stdlib_names[i]);
+
+  g_stdlib_init = 1;
+}
+
+int trans_is_stdlib_fun(S_symbol s) {
+
+  int found = 0;
+
+  if (!g_stdlib_init)
+    trans_stdlib_init();
+
+  for (size_t i = 0; i < STDLIB_FUN_COUNT && !found; i++)
+    found = (g_stdlib_funs[i] == s);
+
+  return found;
+}
+
+void print_trans(trans_t* t) {
+
+  TRANS_SEM_ERR_RET();
+  printStmList(stdout, T_StmList(t->ir, NULL));
+}
 
 void trans_append_all_funs(trans_t* t) {
 
   tfl_t* cur = all_funs;
+
+  TRANS_SEM_ERR_RET();
 
   if (!cur)
     return;
@@ -123,7 +160,11 @@ void trans_free(trans_t** t) {
 
 void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name) {
 
-  trans_fun_t* f = trans_fun(name);
+  trans_fun_t* f;
+
+  TRANS_SEM_ERR_RET();
+
+  f = trans_fun(name);
   f->ir = T_Seq(T_Label(f->label), child->ir);
 
   parent->fun_list = tfl(f, parent->fun_list);
@@ -135,6 +176,8 @@ void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name) {
 Temp_label trans_fun_label(trans_t* t, S_symbol s) {
 
   Temp_label label = NULL;
+
+  TRANS_SEM_ERR_RET(NULL);
 
   for (; t && !label; t = t->parent) {
 
@@ -153,10 +196,14 @@ Temp_label trans_fun_label(trans_t* t, S_symbol s) {
 
 void trans_append_child(trans_t* parent, trans_t* child) {
 
+  TRANS_SEM_ERR_RET();
+
   parent->ir = T_Seq(parent->ir, child->ir);
 }
 
 void trans_add_formal(trans_t* t, S_symbol s) {
+
+  TRANS_SEM_ERR_RET();
 
   //printf("formal var '%s'\n", S_name(s));
   frame_add_formal(t->frame, s);
@@ -164,16 +211,34 @@ void trans_add_formal(trans_t* t, S_symbol s) {
 
 void trans_add_local(trans_t* t, S_symbol s, size_t sz) {
 
+  TRANS_SEM_ERR_RET();
+
   //printf("local var '%s' with size %d\n", S_name(s), sz);
   frame_add_local(t->frame, s, sz);
 }
 
+void trans_add_ty(trans_t* t, S_symbol s, frame_field_t* fields) {
+
+  frame_add_ty(t->frame, s, fields);
+}
+
+frame_field_t* trans_ty_fields_get(trans_t* t, S_symbol s) {
+
+  TRANS_SEM_ERR_RET(NULL);
+
+  return frame_ty_fields_get(t->frame, s);
+}
+
 void trans_prologue(trans_t* t) {
+
+  TRANS_SEM_ERR_RET();
 
   t->ir = T_Seq(stm_prologue(t), t->ir);
 }
 
 void trans_epilogue(trans_t* t) {
+
+  TRANS_SEM_ERR_RET();
 
   t->ir = T_Seq(t->ir, stm_epilogue(t));
 }
@@ -215,14 +280,30 @@ bool verify_right_exp(trans_t* t) {
 
 void trans_var_access(trans_t* t, S_symbol s) {
 
-  T_stm stm = stm_var_access(t, s);
+  T_stm stm;
+
+  TRANS_SEM_ERR_RET();
+
+  stm = stm_var_access(t, s);
 
   // just rotating so the exp stays on the right, should be harmless 
   t->ir = T_Seq(T_Seq(t->ir, stm->u.SEQ.left), stm->u.SEQ.right);
   free(stm);
 }
 
+void trans_field_access(trans_t* t, size_t off) {
+
+  TRANS_SEM_ERR_RET();
+
+  if (!verify_right_exp(t))
+    return;
+
+  t->ir->u.SEQ.right = T_Exp(T_Mem(T_Binop(T_plus, t->ir->u.SEQ.right->u.EXP, T_Const(off))));
+}
+
 void trans_var_store(trans_t* t, S_symbol s) {
+
+  TRANS_SEM_ERR_RET();
 
   if (!verify_right_exp(t))
     return;
@@ -231,6 +312,8 @@ void trans_var_store(trans_t* t, S_symbol s) {
 }
 
 void trans_funcall_param(trans_t* t, int reg) {
+
+  TRANS_SEM_ERR_RET();
 
   if (!verify_right_exp(t))
     return;
@@ -246,7 +329,11 @@ void trans_funcall_param(trans_t* t, int reg) {
 
 void trans_funcall(trans_t* t, S_symbol fun) {
 
-  Temp_label label = trans_fun_label(t, fun);
+  Temp_label label;
+
+  TRANS_SEM_ERR_RET();
+
+  label = trans_fun_label(t, fun);
 
   if (!label)
     return;
@@ -256,5 +343,8 @@ void trans_funcall(trans_t* t, S_symbol fun) {
 
 void trans_int_exp(trans_t* t, int n) {
 
+  TRANS_SEM_ERR_RET();
+
   t->ir = T_Seq(t->ir, T_Exp(T_Const(n)));
 }
+
