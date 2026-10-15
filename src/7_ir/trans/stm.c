@@ -88,51 +88,56 @@ T_stm stm_store_formals(trans_t* t) {
   return stm;
 }
 
-T_stm stm_var_read(trans_t* t, T_exp dst, S_symbol s) {
+T_stm stm_var_access(trans_t* t, S_symbol s) {
 
   frame_t* frame = t->frame;
-  frame_access_t* var = frame_local_get(frame, s);
+  frame_access_t* var;
   T_stm stm = NULL;
   bool found = true;
 
-  if (!var) {
-
-    found = false;
-    stm = T_Seq(T_Move(T_Name(Temp_namedlabel(regs[5])), 
-            T_Name(Temp_namedlabel("fp"))), find_frame(t, s));
-  }
+  if (!s)
+    return NULL;
 
   var = frame_local_get(frame, s);
-  stm = T_Seq(stm, T_Move(dst ,T_Mem(T_Binop(T_minus, T_Name(Temp_namedlabel("fp")), T_Const(var->stack_off)))));
 
-  if (!found)
-    stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("fp")), T_Name(Temp_namedlabel(regs[5]))));
+  if (!var) {
+
+    // MAX_PARAMS+1 is old fp
+    // MAX_PARAMS+2 is fp of variable location
+
+    found = false;
+
+    // find correct frame
+    stm = T_Seq(T_Move(T_Name(Temp_namedlabel(regs[MAX_PARAMS+1])), 
+            T_Name(Temp_namedlabel("fp"))), find_frame(t, s));
+
+    // store fp
+    stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel(regs[MAX_PARAMS+2])), T_Name(Temp_namedlabel("fp"))));
+
+    // restore fp
+    stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("fp")), T_Name(Temp_namedlabel(regs[MAX_PARAMS+1]))));
+  }
+
+  var = frame_local_get(t->frame, s);
+  stm = T_Seq(stm, T_Exp(T_Mem(T_Binop(T_minus, T_Name(Temp_namedlabel(found ? "fp" : regs[MAX_PARAMS+2])), T_Const(var->stack_off)))));
 
   t->frame = frame;
   return stm;
 }
 
+T_stm stm_var_read(trans_t* t, T_exp dst, S_symbol s) {
+
+  T_stm stm = stm_var_access(t, s);
+  stm->u.SEQ.right = T_Move(dst, stm->u.SEQ.right->u.EXP);
+
+  return stm;
+}
+
 T_stm stm_var_write(trans_t* t, T_exp src, S_symbol s) {
 
-  frame_t* frame = t->frame;
-  frame_access_t* var = frame_local_get(frame, s);
-  T_stm stm = NULL;
-  bool found = true;
+  T_stm stm = stm_var_access(t, s);
+  stm->u.SEQ.right = T_Move(stm->u.SEQ.right->u.EXP, src);
 
-  if (!var) {
-
-    found = false;
-    stm = T_Seq(T_Move(T_Name(Temp_namedlabel(regs[5])), 
-            T_Name(Temp_namedlabel("fp"))), find_frame(t, s));
-  }
-
-  var = frame_local_get(frame, s);
-  stm = T_Seq(stm, T_Move(T_Mem(T_Binop(T_minus, T_Name(Temp_namedlabel("fp")), T_Const(var->stack_off))), src));
-
-  if (!found)
-    stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("fp")), T_Name(Temp_namedlabel(regs[5]))));
-
-  t->frame = frame;
   return stm;
 }
 

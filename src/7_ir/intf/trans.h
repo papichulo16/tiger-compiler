@@ -44,6 +44,7 @@ void trans_add_local(trans_t* t, S_symbol s, size_t sz);
 void trans_prologue(trans_t* t);
 void trans_epilogue(trans_t* t);
 
+void trans_var_access(trans_t* t, S_symbol s);
 void trans_var_store(trans_t* t, S_symbol s);
 void trans_funcall_param(trans_t* t, int reg);
 void trans_funcall(trans_t* t, S_symbol fun);

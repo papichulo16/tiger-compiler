@@ -9,6 +9,7 @@ T_stm stm_epilogue(trans_t* t);
 
 T_stm stm_resv_frame(int stack_sz);
 T_stm stm_store_formals(trans_t* t);
+T_stm stm_var_access(trans_t* t, S_symbol s);
 T_stm stm_var_read(trans_t* t, T_exp dst, S_symbol s);
 T_stm stm_var_write(trans_t* t, T_exp src, S_symbol s);
 

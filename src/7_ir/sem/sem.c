@@ -367,6 +367,7 @@ Ty_ty sem_trans_var(trans_t* tr, A_var v) {
     case A_simpleVar:
 
       t = sem_sym_var_get(g_symtab, v->u.simple); 
+      trans_var_access(tr, v->u.simple);
       break;
 
     case A_fieldVar:

@@ -14,7 +14,7 @@
 
 tfl_t* all_funs = NULL;
 
-char* regs[] = { "r0", "r1", "r2", "r3", "r4", "r5" };
+char* regs[] = { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9" };
 
 void print_trans(trans_t* t) { printStmList(stdout, T_StmList(t->ir, NULL)); }
 
@@ -206,11 +206,20 @@ bool verify_right_exp(trans_t* t) {
 
     // i am not sure if this will happen, but i bet if it does then its a 
     // semantic error anyways
-    printf("was there a semantic error?\n");
+    printf("was there a semantic error? kind %d\n", init->kind);
     return false;
   }
 
   return true;
+}
+
+void trans_var_access(trans_t* t, S_symbol s) {
+
+  T_stm stm = stm_var_access(t, s);
+
+  // just rotating so the exp stays on the right, should be harmless 
+  t->ir = T_Seq(T_Seq(t->ir, stm->u.SEQ.left), stm->u.SEQ.right);
+  free(stm);
 }
 
 void trans_var_store(trans_t* t, S_symbol s) {

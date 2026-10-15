@@ -1,4 +1,6 @@
 let
+  var balls := 10
+
   function f(a:int) : int = (
     let
       var x := 10
@@ -8,5 +10,5 @@ let
     end
   )
 in 
-  f(10)
+  f(balls)
 end

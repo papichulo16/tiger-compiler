@@ -125,10 +125,9 @@ void frame_add_local(frame_t* frame, S_symbol sym, size_t sz) {
   fal_t* f = frame->locals;
 
   for(; f->head ; f = f->tail);
+  frame->stack_size += sz;
   f->head = frame_access(sym, true, frame->stack_size);
   f->tail = fal(NULL, NULL);
-
-  frame->stack_size += sz;
 }
 
 frame_access_t* frame_local_get(frame_t* f, S_symbol s) {
