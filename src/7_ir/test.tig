@@ -8,5 +8,5 @@ let
     end
   )
 in 
-  f(2)
+  f(10)
 end

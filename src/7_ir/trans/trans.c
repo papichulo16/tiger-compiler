@@ -5,25 +5,16 @@
 #include "errormsg.h"
 #include "symbol.h"
 #include "types.h"
-#include "trans.h"
 #include "frame.h"
+#include "trans.h"
 #include "temp.h"
 #include "tree.h"
 #include "printtree.h"
-
-struct trans_fun_t {
-  S_symbol sym;
-  Temp_label label;
-  T_stm ir;
-};
-
-struct trans_t {
-  frame_t* frame;
-  T_stm ir;
-  tfl_t* fun_list;
-};
+#include "stm.h"
 
 tfl_t* all_funs = NULL;
+
+char* regs[] = { "r0", "r1", "r2", "r3", "r4", "r5" };
 
 void print_trans(trans_t* t) { printStmList(stdout, T_StmList(t->ir, NULL)); }
 
@@ -88,6 +79,7 @@ trans_t* trans_new() {
 trans_t* trans_new_link(trans_t* parent) {
 
   trans_t* t = trans_new();
+  t->parent = parent;
   frame_link(t->frame, parent->frame);
 
   return t;
@@ -137,7 +129,31 @@ void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name) {
   parent->fun_list = tfl(f, parent->fun_list);
   all_funs = tfl(f, all_funs);
 
-  printf("added fun '%s'\n", S_name(name));
+  //printf("added fun '%s'\n", S_name(name));
+}
+
+Temp_label trans_fun_label(trans_t* t, S_symbol s) {
+
+  Temp_label label = NULL;
+
+  for (; t && !label; t = t->parent) {
+
+    for (tfl_t* l = t->fun_list; l; l = l->tail) {
+
+      if (l->head && l->head->sym == s) {
+
+        label = l->head->label;
+        break;
+      }
+    }
+  }
+
+  return label;
+}
+
+void trans_append_child(trans_t* parent, trans_t* child) {
+
+  parent->ir = T_Seq(parent->ir, child->ir);
 }
 
 void trans_add_formal(trans_t* t, S_symbol s) {
@@ -152,75 +168,84 @@ void trans_add_local(trans_t* t, S_symbol s, size_t sz) {
   frame_add_local(t->frame, s, sz);
 }
 
-T_stm find_frame(trans_t* t, S_symbol s) {
-
-  frame_access_t* var;
-
-  if (!t->frame) {
-
-    printf("this shouldnt hit\n");
-    return NULL;
-  }
-
-  var = frame_local_get(t->frame, s);
-
-  if (var)
-    return NULL;
-
-  t->frame = t->frame->static_link;
-
-  return T_Seq(T_Move(T_Name(Temp_namedlabel("fp")), T_Mem(T_Name(Temp_namedlabel("fp")))), find_frame(t, s));
-}
-
-void trans_var_access(trans_t* t, T_exp dst, S_symbol s) {
-
-  frame_t* frame = t->frame;
-  frame_access_t* var = frame_local_get(frame, s);
-  T_stm stm = NULL;
-
-  if (!var) {
-
-    stm = T_Seq(T_Move(T_Name(Temp_namedlabel("r5")), 
-            T_Name(Temp_namedlabel("fp"))), find_frame(t, s));
-  }
-
-  var = frame_local_get(frame, s);
-  stm = T_Seq(stm, T_Move(dst ,T_Mem(T_Binop(T_minus, T_Name(Temp_namedlabel("fp")), T_Const(var->stack_off)))));
-  stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("fp")), T_Name(Temp_namedlabel("r5"))));
-
-  t->frame = frame;
-  t->ir = T_Seq(t->ir, stm);
-}
-
-T_stm stm_push(T_exp src) {
-
-  return T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))), 
-      T_Move(T_Mem(T_Name(Temp_namedlabel("sp"))), src));
-}
-
-T_stm stm_pop(T_exp dst) {
-
-  return T_Seq(T_Move(dst, T_Mem(T_Name(Temp_namedlabel("sp")))),
-      T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_plus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))));
-}
-
 void trans_prologue(trans_t* t) {
 
-  T_stm stm = stm_push(T_Name(Temp_namedlabel("fp")));
-
-  if (t->frame->stack_size)
-    stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(t->frame->stack_size))));
-
-  t->ir = T_Seq(stm, t->ir);
+  t->ir = T_Seq(stm_prologue(t), t->ir);
 }
 
 void trans_epilogue(trans_t* t) {
 
-  T_stm stm = stm_pop(T_Name(Temp_namedlabel("fp")));
-
-  if (t->frame->stack_size)
-    stm = T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Name(Temp_namedlabel("fp"))) , stm);
-
-  t->ir = T_Seq(t->ir, stm);
+  t->ir = T_Seq(t->ir, stm_epilogue(t));
 }
 
+bool verify_right_exp(trans_t* t) {
+
+  T_stm init;
+
+  if (!t->ir) {
+
+    printf("no init exp, also no ir cuz of it. should be temporary right??\n");
+    return false;
+  }
+
+  if (t->ir->kind != T_SEQ) {
+
+    printf("HUHUHUHUHUHUH BIG IR WHOOPS\n");
+    exit(-1);
+  }
+
+  init = t->ir->u.SEQ.right;
+
+  if (!init) {
+
+    printf("no init exp, should be temporary right??\n");
+    return false;
+  }
+
+  if (init->kind != T_EXP) {
+
+    // i am not sure if this will happen, but i bet if it does then its a 
+    // semantic error anyways
+    printf("was there a semantic error?\n");
+    return false;
+  }
+
+  return true;
+}
+
+void trans_var_store(trans_t* t, S_symbol s) {
+
+  if (!verify_right_exp(t))
+    return;
+
+  t->ir->u.SEQ.right = stm_var_write(t, t->ir->u.SEQ.right->u.EXP, s);
+}
+
+void trans_funcall_param(trans_t* t, int reg) {
+
+  if (!verify_right_exp(t))
+    return;
+
+  if (reg > MAX_PARAMS) {
+
+    printf("max params in funcall, i should add the ability to do more soon\n");
+    return;
+  }
+
+  t->ir->u.SEQ.right = T_Move(T_Name(Temp_namedlabel(regs[reg])), t->ir->u.SEQ.right->u.EXP);
+}
+
+void trans_funcall(trans_t* t, S_symbol fun) {
+
+  Temp_label label = trans_fun_label(t, fun);
+
+  if (!label)
+    return;
+
+  t->ir = T_Seq(t->ir, T_Exp(T_Call(T_Name(label))));
+}
+
+void trans_int_exp(trans_t* t, int n) {
+
+  t->ir = T_Seq(t->ir, T_Exp(T_Const(n)));
+}

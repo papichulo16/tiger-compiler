@@ -1,5 +1,10 @@
 #pragma once
 
+#include "util.h"
+#include "symbol.h"
+
+#define MAX_PARAMS 5
+
 typedef struct frame_access_list_t fal_t;
 typedef struct frame_t frame_t;
 

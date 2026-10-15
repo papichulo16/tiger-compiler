@@ -56,6 +56,23 @@ Ty_tyList sem_trans_expl(trans_t* tr, A_expList el) {
   return tyl;
 }
 
+Ty_tyList sem_trans_expl_funcall(trans_t* tr, A_expList el, int reg) {
+
+  Ty_ty t;
+  Ty_tyList tyl = NULL;
+
+  if (!el)
+    return NULL;
+
+  t = sem_trans_exp(tr, el->head);
+  trans_funcall_param(tr, reg);
+
+  tyl = Ty_TyList(t, sem_trans_expl_funcall(tr, el->tail, reg+1));
+
+  free(el);
+  return tyl;
+}
+
 Ty_ty sem_tyl_last(Ty_tyList tl) {
 
   if (!tl)
@@ -309,6 +326,7 @@ void sem_trans_vardec(trans_t* tr, A_dec d) {
   }
 
   sem_sym_var_add(d->pos, tr, g_symtab, d->u.var.var, ty, false);
+  trans_var_store(tr, d->u.var.var);
 }
 
 void sem_trans_dec(trans_t* t, A_dec d) {
@@ -462,11 +480,13 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
     case A_nilExp:
 
       t = Ty_Nil();
+      trans_int_exp(tr, 0);
       break;
 
     case A_intExp:
 
       t = Ty_Int();
+      trans_int_exp(tr, e->u.intt);
       break;
 
     case A_stringExp:
@@ -476,7 +496,7 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
 
     case A_callExp:
       
-      tl = sem_trans_expl(tr, e->u.call.args); 
+      tl = sem_trans_expl_funcall(tr, e->u.call.args, 0); 
 
       if (!sem_sym_is_fun(g_symtab, e->u.call.func)) {
 
@@ -488,6 +508,7 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
 
         t = sem_sym_type_get(g_symtab, e->u.call.func);
         cmp_call_params(e->pos, sem_sym_params_get(g_symtab, e->u.call.func), tl);
+        trans_funcall(tr, e->u.call.func);
       }
 
       sem_tyl_free(tl);
@@ -613,6 +634,7 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
       t = sem_trans_exp(t_temp, e->u.let.body);
 
       trans_epilogue(t_temp);
+      trans_append_child(tr, t_temp);
 
       trans_free(&t_temp);
       S_endScope(g_symtab);

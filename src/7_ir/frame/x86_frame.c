@@ -6,8 +6,9 @@
 #include "symbol.h"
 #include "types.h"
 #include "temp.h"
-#include "trans.h"
 #include "frame.h"
+#include "tree.h"
+#include "trans.h"
 
 #ifdef X86_FRAME
 
@@ -106,13 +107,17 @@ void frame_add_formal(frame_t* frame, S_symbol sym) {
 
   for(; f->head ; f = f->tail, count++);
 
-  if (count > 6)
-    return;
+  if (count > MAX_PARAMS) {
+
+    printf("too many formals in params (max), need to implement this later\n");
+    exit(-1);
+  }
 
   f->head = frame_access(sym, false, count);
   f->tail = fal(NULL, NULL);
 
-  frame->stack_size += WORD_SZ;
+  // in the IR, I need to store the param here
+  frame_add_local(frame, sym, WORD_SZ);
 }
 
 void frame_add_local(frame_t* frame, S_symbol sym, size_t sz) {

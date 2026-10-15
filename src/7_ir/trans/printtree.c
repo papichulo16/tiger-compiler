@@ -1,6 +1,9 @@
 /*
  * printtree.c - functions to print out intermediate representation (IR) trees.
  *
+ * SEQ chains are flattened so each statement gets its own line, labels sit
+ * at column 0 like assembly, and each statement's expression tree is
+ * printed inline on that line.
  */
 #include <stdio.h>
 #include "util.h"
@@ -9,113 +12,147 @@
 #include "tree.h"
 #include "printtree.h"
 
-/* local function prototype */
-static void pr_tree_exp(FILE *out, T_exp exp, int d);
-
-static void indent(FILE *out, int d) {
- int i;
- for (i = 0; i <= d; i++) fprintf(out, " ");
-}
+static void pr_exp(FILE *out, T_exp exp);
+static void pr_stm_inline(FILE *out, T_stm stm);
 
 static const char *safe_str(const char *s) {
- return s ? s : "NULL";
+  return s ? s : "NULL";
 }
 
 static const char *safe_sym(S_symbol sym) {
- return sym ? safe_str(S_name(sym)) : "NULL";
+  return sym ? safe_str(S_name(sym)) : "NULL";
 }
 
 static const char *safe_temp(Temp_temp t) {
- return t ? safe_str(Temp_look(Temp_name(), t)) : "NULL";
+  return t ? safe_str(Temp_look(Temp_name(), t)) : "NULL";
 }
 
 static char bin_oper[][12] = {
-   "PLUS", "MINUS", "TIMES", "DIVIDE", 
-   "AND", "OR", "LSHIFT", "RSHIFT", "ARSHIFT", "XOR"};
+  "PLUS", "MINUS", "TIMES", "DIVIDE",
+  "AND", "OR", "LSHIFT", "RSHIFT", "ARSHIFT", "XOR"};
 
 static char rel_oper[][12] = {
   "EQ", "NE", "LT", "GT", "LE", "GE", "ULT", "ULE", "UGT", "UGE"};
- 
-static void pr_stm(FILE *out, T_stm stm, int d)
+
+static void pr_exp(FILE *out, T_exp exp)
 {
-  if (!stm) {
-    indent(out,d); fprintf(out, "NULL");
-  } else switch (stm->kind) {
-  case T_SEQ:
-    indent(out,d);
-    fprintf(out, "SEQ(\n"); pr_stm(out, stm->u.SEQ.left,d+1);  fprintf(out, ",\n"); 
-    pr_stm(out, stm->u.SEQ.right,d+1); fprintf(out, ")");
-    break;
-  case T_LABEL:
-    indent(out,d); fprintf(out, "LABEL %s", safe_sym(stm->u.LABEL));
-    break;
-  case T_JUMP:
-    indent(out,d); fprintf(out, "JUMP(\n"); pr_tree_exp(out, stm->u.JUMP.exp,d+1); 
+  if (!exp) {
+    fprintf(out, "NULL");
+  } else switch (exp->kind) {
+  case T_BINOP:
+    fprintf(out, "BINOP(%s, ", bin_oper[exp->u.BINOP.op]);
+    pr_exp(out, exp->u.BINOP.left);
+    fprintf(out, ", ");
+    pr_exp(out, exp->u.BINOP.right);
     fprintf(out, ")");
     break;
-  case T_CJUMP:
-    indent(out,d); fprintf(out, "CJUMP(%s,\n", rel_oper[stm->u.CJUMP.op]);
-    pr_tree_exp(out, stm->u.CJUMP.left,d+1); fprintf(out, ",\n"); 
-    pr_tree_exp(out, stm->u.CJUMP.right,d+1); fprintf(out, ",\n");
-    indent(out,d+1); fprintf(out, "%s,", safe_sym(stm->u.CJUMP.tr));
-    fprintf(out, "%s", safe_sym(stm->u.CJUMP.fa)); fprintf(out, ")");
+  case T_MEM:
+    fprintf(out, "MEM(");
+    pr_exp(out, exp->u.MEM);
+    fprintf(out, ")");
     break;
-  case T_MOVE:
-    indent(out,d); fprintf(out, "MOVE(\n"); pr_tree_exp(out, stm->u.MOVE.dst,d+1); 
-    fprintf(out, ",\n");
-    pr_tree_exp(out, stm->u.MOVE.src,d+1); fprintf(out, ")");
+  case T_TEMP:
+    fprintf(out, "TEMP t%s", safe_temp(exp->u.TEMP));
     break;
-  case T_EXP:
-    indent(out,d); fprintf(out, "EXP(\n"); pr_tree_exp(out, stm->u.EXP,d+1); 
+  case T_ESEQ:
+    fprintf(out, "ESEQ({ ");
+    pr_stm_inline(out, exp->u.ESEQ.stm);
+    fprintf(out, " }, ");
+    pr_exp(out, exp->u.ESEQ.exp);
+    fprintf(out, ")");
+    break;
+  case T_NAME:
+    fprintf(out, "NAME %s", safe_sym(exp->u.NAME));
+    break;
+  case T_CONST:
+    fprintf(out, "CONST %d", exp->u.CONST);
+    break;
+  case T_CALL:
+    fprintf(out, "CALL(");
+    pr_exp(out, exp->u.CALL.fun);
     fprintf(out, ")");
     break;
   }
 }
 
-static void pr_tree_exp(FILE *out, T_exp exp, int d)
+/* prints a single non-SEQ statement with no indent or newline */
+static void pr_stm_body(FILE *out, T_stm stm)
 {
-  if (!exp) {
-    indent(out,d); fprintf(out, "NULL");
-  } else switch (exp->kind) {
-  case T_BINOP:
-    indent(out,d); fprintf(out, "BINOP(%s,\n", bin_oper[exp->u.BINOP.op]); 
-    pr_tree_exp(out, exp->u.BINOP.left,d+1); fprintf(out, ",\n"); 
-    pr_tree_exp(out, exp->u.BINOP.right,d+1); fprintf(out, ")");
+  switch (stm->kind) {
+  case T_SEQ:
+    pr_stm_inline(out, stm);
     break;
-  case T_MEM:
-    indent(out,d); fprintf(out, "MEM");
-    fprintf(out, "(\n"); pr_tree_exp(out, exp->u.MEM,d+1); fprintf(out, ")");
+  case T_LABEL:
+    fprintf(out, "%s:", safe_sym(stm->u.LABEL));
     break;
-  case T_TEMP:
-    indent(out,d); fprintf(out, "TEMP t%s", 
-			   safe_temp(exp->u.TEMP));
+  case T_JUMP:
+    fprintf(out, "JUMP(");
+    pr_exp(out, stm->u.JUMP.exp);
+    fprintf(out, ")");
     break;
-  case T_ESEQ:
-    indent(out,d); fprintf(out, "ESEQ(\n"); pr_stm(out, exp->u.ESEQ.stm,d+1); 
-    fprintf(out, ",\n");
-    pr_tree_exp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
+  case T_CJUMP:
+    fprintf(out, "CJUMP(%s, ", rel_oper[stm->u.CJUMP.op]);
+    pr_exp(out, stm->u.CJUMP.left);
+    fprintf(out, ", ");
+    pr_exp(out, stm->u.CJUMP.right);
+    fprintf(out, ", %s, %s)", safe_sym(stm->u.CJUMP.tr), safe_sym(stm->u.CJUMP.fa));
     break;
-  case T_NAME:
-    indent(out,d); fprintf(out, "NAME %s", safe_sym(exp->u.NAME));
+  case T_MOVE:
+    fprintf(out, "MOVE(");
+    pr_exp(out, stm->u.MOVE.dst);
+    fprintf(out, ", ");
+    pr_exp(out, stm->u.MOVE.src);
+    fprintf(out, ")");
     break;
-  case T_CONST:
-    indent(out,d); fprintf(out, "CONST %d", exp->u.CONST);
+  case T_EXP:
+    fprintf(out, "EXP(");
+    pr_exp(out, stm->u.EXP);
+    fprintf(out, ")");
     break;
-  case T_CALL:
-    {T_expList args = exp->u.CALL.args;
-     indent(out,d); fprintf(out, "CALL(\n"); pr_tree_exp(out, exp->u.CALL.fun,d+1);
-     for (;args; args=args->tail) {
-       fprintf(out, ",\n"); pr_tree_exp(out, args->head,d+2);
-     }
-     fprintf(out, ")");
-     break;
-   }
-  } /* end of switch */
+  }
 }
 
-void printStmList (FILE *out, T_stmList stmList) 
+/* NULL statements are treated as no-ops inside SEQs so they don't clutter the output */
+static int is_noop(T_stm stm)
 {
-  for (; stmList; stmList=stmList->tail) {
-    pr_stm(out, stmList->head,0); fprintf(out, "\n");
+  return stm == NULL;
+}
+
+/* used inside ESEQ, where statements must stay on the expression's line */
+static void pr_stm_inline(FILE *out, T_stm stm)
+{
+  if (is_noop(stm)) {
+    fprintf(out, "NULL");
+  } else if (stm->kind != T_SEQ) {
+    pr_stm_body(out, stm);
+  } else if (is_noop(stm->u.SEQ.left)) {
+    pr_stm_inline(out, stm->u.SEQ.right);
+  } else if (is_noop(stm->u.SEQ.right)) {
+    pr_stm_inline(out, stm->u.SEQ.left);
+  } else {
+    pr_stm_inline(out, stm->u.SEQ.left);
+    fprintf(out, "; ");
+    pr_stm_inline(out, stm->u.SEQ.right);
+  }
+}
+
+static void pr_stm_lines(FILE *out, T_stm stm)
+{
+  if (is_noop(stm)) {
+    /* nothing to print */
+  } else if (stm->kind == T_SEQ) {
+    pr_stm_lines(out, stm->u.SEQ.left);
+    pr_stm_lines(out, stm->u.SEQ.right);
+  } else {
+    if (stm->kind != T_LABEL) fprintf(out, "    ");
+    pr_stm_body(out, stm);
+    fprintf(out, "\n");
+  }
+}
+
+void printStmList (FILE *out, T_stmList stmList)
+{
+  for (; stmList; stmList = stmList->tail) {
+    pr_stm_lines(out, stmList->head);
   }
 }

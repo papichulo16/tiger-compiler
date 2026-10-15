@@ -1,5 +1,9 @@
 #pragma once
 
+#include "util.h"
+#include "symbol.h"
+#include "absyn.h"
+#include "types.h"
 #include "trans.h"
 
 typedef struct {

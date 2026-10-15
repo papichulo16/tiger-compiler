@@ -1,3 +1,7 @@
+#pragma once
+
+#include "temp.h"
+
 /*
  * tree.h - Definitions for intermediate representation (IR) trees.
  *
@@ -35,7 +39,7 @@ struct T_exp_ {enum {T_BINOP, T_MEM, T_TEMP, T_ESEQ, T_NAME,
 		     struct {T_stm stm; T_exp exp;} ESEQ;
 		     Temp_label NAME;
 		     int CONST;
-		     struct {T_exp fun; T_expList args;} CALL;
+		     struct {T_exp fun;} CALL;
 		   } u;
 	    };
 
@@ -56,7 +60,7 @@ T_exp T_Temp(Temp_temp);
 T_exp T_Eseq(T_stm, T_exp);
 T_exp T_Name(Temp_label);
 T_exp T_Const(int);
-T_exp T_Call(T_exp, T_expList);
+T_exp T_Call(T_exp fun);
 
 T_relOp T_notRel(T_relOp);  /* a op b    ==     not(a notRel(op) b)  */
 T_relOp T_commute(T_relOp); /* a op b    ==    b commute(op) a       */

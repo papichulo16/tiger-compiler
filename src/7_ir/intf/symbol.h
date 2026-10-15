@@ -1,3 +1,7 @@
+#pragma once
+
+#include "util.h"
+
 /*
  * symbol.h - Symbols and symbol-tables
  *

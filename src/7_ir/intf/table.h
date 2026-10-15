@@ -1,3 +1,5 @@
+#pragma once
+
 /*
  * table.h - generic hash table
  *

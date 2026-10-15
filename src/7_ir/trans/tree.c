@@ -109,11 +109,10 @@ T_exp T_Const(int consti)
  return p;
 }
  
-T_exp T_Call(T_exp fun, T_expList args)
+T_exp T_Call(T_exp fun)
 {T_exp p = (T_exp) checked_malloc(sizeof *p);
  p->kind=T_CALL;
  p->u.CALL.fun=fun;
- p->u.CALL.args=args;
  return p;
 }
 

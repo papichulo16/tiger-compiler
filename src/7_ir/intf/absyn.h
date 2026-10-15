@@ -1,3 +1,8 @@
+#pragma once
+
+#include "util.h"
+#include "symbol.h"
+
 /*
  * absyn.h - Abstract Syntax Header (Chapter 4)
  *
