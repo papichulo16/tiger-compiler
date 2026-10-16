@@ -23,6 +23,8 @@ typedef struct {
 
 } symtab_id_t;
 
+size_t ty_sz(int pos, S_table symtab, Ty_ty ty);
+
 bool sem_sym_inuse(S_table symtab, S_symbol sym);
 bool sem_sym_ty_eq(Ty_ty t1, Ty_ty t2);
 bool sem_sym_is_fun(S_table symtab, S_symbol name);

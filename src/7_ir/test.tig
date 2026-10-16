@@ -3,7 +3,7 @@ let
   type shitass = {a: int, b: shit}
 
   var balls := 10
-  var n := shitass {a=1, b=nil}
+  var n : shitass := shitass {a=1, b=shit{a=2, b=3}} 
 
   function f(a:int) : int = (
     let
@@ -15,5 +15,4 @@ let
   )
 in 
   f(balls);
-  n.b;
 end

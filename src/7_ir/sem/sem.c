@@ -307,7 +307,11 @@ void sem_trans_namety(A_namety n) {
 void sem_trans_vardec(trans_t* tr, A_dec d) {
 
   Ty_ty ty = NULL;
-  Ty_ty init = sem_trans_exp(tr, d->u.var.init);
+  Ty_ty init;
+  T_exp src;
+  T_exp dst;
+
+  init = sem_trans_exp(tr, d->u.var.init);
 
   if (!d->u.var.typ) {
 
@@ -328,11 +332,12 @@ void sem_trans_vardec(trans_t* tr, A_dec d) {
       EM_semantic_error(d->pos, "bad exp type and var type");
   }
 
+  src = trans_pop_exp(tr);
   sem_sym_var_add(d->pos, tr, g_symtab, d->u.var.var, ty, false);
 
-  // continue here, need to __alloc in exp and set the var to
-  // a ptr if its not a native type
-  trans_var_store(tr, d->u.var.var, ty); 
+  trans_var_access(tr, d->u.var.var);
+  dst = trans_pop_exp(tr);
+  trans_assign_exp(tr, dst, src);
 }
 
 void sem_trans_dec(trans_t* t, A_dec d) {
@@ -427,9 +432,11 @@ void cmp_call_params(int pos, Ty_fieldList rec, Ty_tyList call) {
   cmp_call_params(pos, rec->tail, call->tail);
 }
 
-void rec_def_test(int pos, trans_t* tr, Ty_fieldList rec, A_efieldList fields) {
+void rec_def_test(int pos, trans_t* tr, Ty_ty ty, Temp_temp rec_tmp, Ty_fieldList rec, A_efieldList fields) {
 
   Ty_ty t;
+  size_t off;
+  T_exp src;
 
   if (!fields) {
 
@@ -440,13 +447,17 @@ void rec_def_test(int pos, trans_t* tr, Ty_fieldList rec, A_efieldList fields) {
   }
 
   t = sem_trans_exp(tr, fields->head->exp);
+  src = trans_pop_exp(tr);
 
   if (!rec)
     EM_semantic_error(pos, "too much record field amount");
   else if (rec->head->name != fields->head->name || !sem_sym_ty_eq(rec->head->ty, t))
     EM_semantic_error(pos, "invalid type for record");
 
-  rec_def_test(pos, tr, rec ? rec->tail : NULL, fields->tail);
+  if (sem_sym_record_field_off(ty, fields->head->name, &off))
+    trans_rec_field_init(tr, rec_tmp, off, src);
+
+  rec_def_test(pos, tr, ty, rec_tmp, rec ? rec->tail : NULL, fields->tail);
 
   free(fields->head);
   free(fields);
@@ -476,6 +487,9 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
   Ty_ty t2 = NULL;
   Ty_ty t3 = NULL;
   Ty_tyList tl = NULL;
+  T_exp src;
+  T_exp dst;
+  Temp_temp rec_tmp;
 
   trans_t* t_temp = NULL;
 
@@ -550,7 +564,9 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
         t2 = NULL;
       }
 
-      rec_def_test(e->pos, tr, t2 ? t2->u.record : NULL, e->u.record.fields);
+      rec_tmp = trans_rec_alloc(tr, ty_sz(e->pos, g_symtab, t));
+      rec_def_test(e->pos, tr, t2, rec_tmp, t2 ? t2->u.record : NULL, e->u.record.fields);
+      trans_temp_exp(tr, rec_tmp);
 
       break;
 
@@ -565,7 +581,11 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
     case A_assignExp:
 
       t = sem_trans_var(tr, e->u.assign.var);
+      dst = trans_pop_exp(tr);
       t2 = sem_trans_exp(tr, e->u.assign.exp);
+      src = trans_pop_exp(tr);
+
+      trans_assign_exp(tr, dst, src);
 
       if (!sem_sym_ty_eq(t, t2))
         EM_semantic_error(e->pos, "invalid types for expression");

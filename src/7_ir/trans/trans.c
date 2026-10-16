@@ -286,11 +286,13 @@ void trans_var_access(trans_t* t, S_symbol s) {
 
   stm = stm_var_access(t, s);
 
-  // just rotating so the exp stays on the right, should be harmless 
+  // who would have thought AVL trees would come in handy
+  // just rotating so the exp stays on the right, should be harmless
   t->ir = T_Seq(T_Seq(t->ir, stm->u.SEQ.left), stm->u.SEQ.right);
   free(stm);
 }
 
+// the main var needs to have been accessed last
 void trans_field_access(trans_t* t, size_t off) {
 
   TRANS_SEM_ERR_RET();
@@ -333,7 +335,10 @@ void trans_funcall(trans_t* t, S_symbol fun) {
 
   TRANS_SEM_ERR_RET();
 
-  label = trans_fun_label(t, fun);
+  if (trans_is_stdlib_fun(fun))
+    label = Temp_namedlabel(S_name(fun));
+  else
+    label = trans_fun_label(t, fun);
 
   if (!label)
     return;
@@ -346,5 +351,87 @@ void trans_int_exp(trans_t* t, int n) {
   TRANS_SEM_ERR_RET();
 
   t->ir = T_Seq(t->ir, T_Exp(T_Const(n)));
+}
+
+// it doesnt do a pop expression, just takes out the actual last expression
+T_exp trans_pop_exp(trans_t* t) {
+
+  T_stm top;
+  T_exp e = NULL;
+
+  TRANS_SEM_ERR_RET(NULL);
+
+  if (!verify_right_exp(t))
+    goto out;
+
+  top = t->ir;
+  e = top->u.SEQ.right->u.EXP;
+
+  t->ir = top->u.SEQ.left;
+  free(top->u.SEQ.right);
+  free(top);
+
+out:
+  return e;
+}
+
+void trans_alloc(trans_t* t, size_t size) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, T_Exp(T_Const(size)));
+  trans_funcall_param(t, 0);
+  trans_funcall(t, S_Symbol("__ALLOC"));
+}
+
+void trans_assign_exp(trans_t* t, T_exp dst, T_exp src) {
+
+  TRANS_SEM_ERR_RET();
+
+  if (!dst || !src)
+    return;
+
+  t->ir = T_Seq(t->ir, T_Move(dst, src));
+}
+
+// the record ptr is in a tmp while i populate the rec
+Temp_temp trans_rec_alloc(trans_t* t, size_t size) {
+
+  Temp_temp rec = NULL;
+  T_exp call;
+
+  TRANS_SEM_ERR_RET(NULL);
+
+  trans_alloc(t, size);
+  call = trans_pop_exp(t);
+
+  if (!call)
+    goto out;
+
+  rec = Temp_newtemp();
+  trans_assign_exp(t, T_Temp(rec), call);
+
+out:
+  return rec;
+}
+
+void trans_rec_field_init(trans_t* t, Temp_temp rec, size_t off, T_exp src) {
+
+  TRANS_SEM_ERR_RET();
+
+  if (!rec)
+    return;
+
+  trans_assign_exp(t, T_Mem(T_Binop(T_plus, T_Temp(rec), T_Const(off))), src);
+}
+
+void trans_temp_exp(trans_t* t, Temp_temp tmp) {
+
+  TRANS_SEM_ERR_RET();
+
+  if (!tmp)
+    return;
+
+  t->ir = T_Seq(t->ir, T_Exp(T_Temp(tmp)));
 }
 

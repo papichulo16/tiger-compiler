@@ -47,6 +47,9 @@ void trans_add_local(trans_t* t, S_symbol s, size_t sz);
 void trans_add_ty(trans_t* t, S_symbol s, frame_field_t* fields);
 frame_field_t* trans_ty_fields_get(trans_t* t, S_symbol s);
 
+T_exp trans_pop_exp(trans_t* t);
+void trans_assign_exp(trans_t* t, T_exp dst, T_exp src);
+
 void trans_prologue(trans_t* t);
 void trans_epilogue(trans_t* t);
 
@@ -57,4 +60,9 @@ void trans_funcall_param(trans_t* t, int reg);
 void trans_funcall(trans_t* t, S_symbol fun);
 int trans_is_stdlib_fun(S_symbol s);
 void trans_int_exp(trans_t* t, int n);
+
+void trans_alloc(trans_t* t, size_t size);
+Temp_temp trans_rec_alloc(trans_t* t, size_t size);
+void trans_rec_field_init(trans_t* t, Temp_temp rec, size_t off, T_exp src);
+void trans_temp_exp(trans_t* t, Temp_temp tmp);
 
