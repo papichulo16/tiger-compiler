@@ -18,5 +18,6 @@ let
 in 
   f(balls, 67);
   arr[balls] := 2;
-  while balls < 5 do ( balls := balls+1; huh.a := huh.a - 1)
+  while balls < 5 do ( balls := balls+1; huh.a := huh.a - 1);
+  for i:=0 to 10 do (balls := i);
 end

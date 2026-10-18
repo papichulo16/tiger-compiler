@@ -128,6 +128,10 @@ void frame_add_local(frame_t* frame, S_symbol sym, size_t sz) {
 
   for(; f->head ; f = f->tail);
   frame->stack_size += sz;
+
+  if (frame->shared)
+    frame->static_link->stack_size += sz;
+
   f->head = frame_access(sym, true, frame->stack_size);
   f->tail = fal(NULL, NULL);
 }
@@ -144,8 +148,8 @@ frame_access_t* frame_local_get(frame_t* f, S_symbol s) {
   for (fa = f->locals; fa && fa->head && fa->head->sym != s
       ; fa = fa->tail );
 
-  return (fa && fa->head) ? fa->head : NULL;
-
+  return (fa && fa->head) ? fa->head : 
+    (f->shared ? frame_local_get(f->static_link, s) : NULL);
 }
 
 #endif

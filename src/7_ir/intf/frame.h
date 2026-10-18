@@ -32,6 +32,7 @@ struct frame_t {
 
   size_t stack_size;
   int param_count;
+  bool shared;
 
 };
 

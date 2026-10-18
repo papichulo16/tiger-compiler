@@ -15,6 +15,7 @@
 T_stm find_frame(trans_t* t, S_symbol s) {
 
   frame_access_t* var;
+  bool shared;
 
   if (!t->frame) {
 
@@ -27,7 +28,11 @@ T_stm find_frame(trans_t* t, S_symbol s) {
   if (var)
     return NULL;
 
+  shared = t->frame->shared;
   t->frame = t->frame->static_link;
+
+  if (shared)
+    return find_frame(t, s);
 
   return T_Seq(T_Move(T_Name(Temp_namedlabel("fp")), T_Mem(T_Name(Temp_namedlabel("fp")))), find_frame(t, s));
 }

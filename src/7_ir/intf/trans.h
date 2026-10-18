@@ -37,6 +37,7 @@ extern char* regs[];
 void print_trans(trans_t* t);
 trans_t* trans_new();
 trans_t* trans_new_link(trans_t* parent);
+trans_t* trans_new_link_shared_frame(trans_t* parent);
 
 void trans_free(trans_t** t);
 
@@ -55,6 +56,7 @@ T_stmList trans_pop_funcall_params(trans_t* t, int count);
 
 void trans_start_loop(trans_t* t, T_exp test, Temp_label start, Temp_label end);
 void trans_end_loop(trans_t* t, Temp_label start, Temp_label end);
+void trans_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi);
 
 void trans_assign_exp(trans_t* t, T_exp dst, T_exp src);
 void trans_oper_exp(trans_t* t, A_oper ast_oper, T_exp left, T_exp right);
@@ -67,6 +69,8 @@ void trans_field_access(trans_t* t, size_t off);
 void trans_off_access(trans_t* t, T_exp base, T_exp off);
 void trans_arr_idx(trans_t* t);
 void trans_var_store(trans_t* t, S_symbol s);
+void trans_var_store_exp(trans_t* t, S_symbol s, T_exp e);
+
 void trans_funcall_param(trans_t* t, int reg);
 void trans_funcall(trans_t* t, S_symbol fun);
 int trans_is_stdlib_fun(S_symbol s);

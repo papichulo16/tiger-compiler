@@ -131,6 +131,15 @@ trans_t* trans_new_link(trans_t* parent) {
   return t;
 }
 
+trans_t* trans_new_link_shared_frame(trans_t* parent) {
+
+  trans_t* t = trans_new_link(parent);
+  t->frame->stack_size = parent->frame->stack_size;
+  t->frame->shared = true;
+
+  return t;
+}
+
 static void tfl_free(tfl_t* l) {
 
   tfl_t* next;
@@ -408,6 +417,13 @@ void trans_field_access(trans_t* t, size_t off) {
   t->ir->u.SEQ.right = T_Exp(T_Mem(T_Op(T_plus, t->ir->u.SEQ.right->u.EXP, T_Const(off))));
 }
 
+void trans_var_store_exp(trans_t* t, S_symbol s, T_exp e) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, stm_var_write(t, e, s));
+}
+
 void trans_var_store(trans_t* t, S_symbol s) {
 
   TRANS_SEM_ERR_RET();
@@ -605,5 +621,38 @@ void trans_end_loop(trans_t* t, Temp_label start, Temp_label end) {
   TRANS_SEM_ERR_RET();
 
   t->ir = T_Seq(t->ir, T_Seq(T_Jump(T_Name(start), Temp_LabelList(start, NULL)), T_Label(end)));
+}
+
+void trans_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi) {
+
+  T_stm body;
+  T_exp idx;
+  Temp_label start;
+  Temp_label end;
+
+  TRANS_SEM_ERR_RET();
+
+  body = t->ir;
+  t->ir = NULL;
+
+  start = Temp_newlabel();
+  end = Temp_newlabel();
+
+  // init
+  trans_var_store_exp(t, var, lo);
+
+  // loop check, I had to create the access exp and then pop  
+  trans_var_access(t, var);
+  idx = trans_pop_exp(t);
+  trans_start_loop(t, T_Op(T_ne, idx, hi), start, end);
+
+  t->ir = T_Seq(t->ir, body);
+
+  // post increment
+  trans_var_access(t, var);
+  idx = trans_pop_exp(t);
+  trans_var_store_exp(t, var, T_Op(T_plus, idx, T_Const(1)));
+
+  trans_end_loop(t, start, end);
 }
 
