@@ -43,6 +43,7 @@ void trans_free(trans_t** t);
 
 void trans_append_all_funs(trans_t* t);
 void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name);
+trans_fun_t* trans_fun_get(trans_t* t, S_symbol s);
 Temp_label trans_fun_label(trans_t* t, S_symbol s);
 void trans_append_child(trans_t* parent, trans_t* child);
 void trans_add_formal(trans_t* t, S_symbol s);
@@ -80,6 +81,7 @@ void trans_alloc(trans_t* t, size_t size);
 void trans_alloc_exp(trans_t* t, T_exp e);
 Temp_temp trans_rec_alloc(trans_t* t, size_t size);
 Temp_temp trans_rec_alloc_exp(trans_t* t, T_exp e);
+Temp_temp trans_arr_alloc(trans_t* t, T_exp sz, T_exp init);
 void trans_rec_field_init(trans_t* t, Temp_temp rec, size_t off, T_exp src);
 void trans_temp_exp(trans_t* t, Temp_temp tmp);
 

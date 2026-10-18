@@ -12,8 +12,6 @@
 #include "printtree.h"
 #include "stm.h"
 
-tfl_t* all_funs = NULL;
-
 char* regs[] = { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9" };
 
 static char* g_stdlib_names[] = {
@@ -54,208 +52,6 @@ static int trans_stdlib_idx(S_symbol s) {
 }
 
 int trans_is_stdlib_fun(S_symbol s) { return trans_stdlib_idx(s) >= 0; }
-
-void print_trans(trans_t* t) {
-
-  TRANS_SEM_ERR_RET();
-  printStmList(stdout, T_StmList(t->ir, NULL));
-}
-
-void trans_append_all_funs(trans_t* t) {
-
-  tfl_t* cur = all_funs;
-
-  TRANS_SEM_ERR_RET();
-
-  if (!cur)
-    return;
-
-  for (trans_fun_t* c = cur->head; cur && c; cur = cur->tail, c = cur->head) {
-
-    t->ir = T_Seq(t->ir, c->ir);
-
-    if (!cur->tail)
-      break;
-  }
-}
-
-tfl_t* tfl(trans_fun_t* head, tfl_t* tail) {
-
-  tfl_t* f = malloc(sizeof(*f));
-
-  if (!f) {
-
-    fprintf(stderr, "malloc gay\n");
-    exit(-1);
-  }
-  
-  f->head = head;
-  f->tail = tail;
-
-  return f;
-}
-
-trans_fun_t* trans_fun(S_symbol s) {
-
-  trans_fun_t* f = malloc(sizeof(*f));
-
-  if (!f) {
-
-    fprintf(stderr, "malloc gay\n");
-    exit(-1);
-  }
-  
-  f->sym = s;
-  f->label = Temp_newlabel();
-  f->param_count = 0;
-  f->ir = NULL;
-
-  return f;
-}
-
-trans_t* trans_new() {
-
-  trans_t* t = calloc(1, sizeof(trans_t));
-  t->frame = frame_empty();
-  t->fun_list = tfl(NULL, NULL);
-  
-  return t;
-}
-
-trans_t* trans_new_link(trans_t* parent) {
-
-  trans_t* t = trans_new();
-  t->parent = parent;
-  frame_link(t->frame, parent->frame);
-
-  return t;
-}
-
-trans_t* trans_new_link_shared_frame(trans_t* parent) {
-
-  trans_t* t = trans_new_link(parent);
-  t->frame->stack_size = parent->frame->stack_size;
-  t->frame->shared = true;
-
-  return t;
-}
-
-static void tfl_free(tfl_t* l) {
-
-  tfl_t* next;
-
-  for (; l; l = next) {
-
-    next = l->tail;
-
-    if (l->head) {
-      //trans_free(&l->head->ir);
-      free(l->head);
-    }
-
-    free(l);
-  }
-}
-
-void trans_free(trans_t** t) {
-
-  trans_t* tr;
-
-  if (!t)
-    return;
-
-  tr = *t;
-
-  if (!tr)
-    return;
-
-  frame_free(&tr->frame);
-  //tfl_free(tr->fun_list);
-
-  free(tr);
-  *t = NULL;
-}
-
-void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name) {
-
-  trans_fun_t* f;
-
-  TRANS_SEM_ERR_RET();
-
-  f = trans_fun(name);
-  f->param_count = child->frame->param_count;
-  f->ir = T_Seq(T_Label(f->label), child->ir);
-
-  parent->fun_list = tfl(f, parent->fun_list);
-  all_funs = tfl(f, all_funs);
-
-  //printf("added fun '%s'\n", S_name(name));
-}
-
-static trans_fun_t* trans_fun_get(trans_t* t, S_symbol s) {
-
-  trans_fun_t* f = NULL;
-
-  for (; t && !f; t = t->parent) {
-
-    for (tfl_t* l = t->fun_list; l; l = l->tail) {
-
-      if (l->head && l->head->sym == s) {
-
-        f = l->head;
-        break;
-      }
-    }
-  }
-
-  return f;
-}
-
-Temp_label trans_fun_label(trans_t* t, S_symbol s) {
-
-  trans_fun_t* f;
-
-  TRANS_SEM_ERR_RET(NULL);
-
-  f = trans_fun_get(t, s);
-
-  return f ? f->label : NULL;
-}
-
-void trans_append_child(trans_t* parent, trans_t* child) {
-
-  TRANS_SEM_ERR_RET();
-
-  parent->ir = T_Seq(parent->ir, child->ir);
-}
-
-void trans_add_formal(trans_t* t, S_symbol s) {
-
-  TRANS_SEM_ERR_RET();
-
-  //printf("formal var '%s'\n", S_name(s));
-  frame_add_formal(t->frame, s);
-}
-
-void trans_add_local(trans_t* t, S_symbol s, size_t sz) {
-
-  TRANS_SEM_ERR_RET();
-
-  //printf("local var '%s' with size %d\n", S_name(s), sz);
-  frame_add_local(t->frame, s, sz);
-}
-
-void trans_add_ty(trans_t* t, S_symbol s, frame_field_t* fields) {
-
-  frame_add_ty(t->frame, s, fields);
-}
-
-frame_field_t* trans_ty_fields_get(trans_t* t, S_symbol s) {
-
-  TRANS_SEM_ERR_RET(NULL);
-
-  return frame_ty_fields_get(t->frame, s);
-}
 
 void trans_prologue(trans_t* t) {
 
@@ -587,7 +383,8 @@ out:
 }
 
 void trans_alloc(trans_t* t, size_t size) { trans_alloc_exp(t, T_Const(size)); }
-Temp_temp trans_rec_alloc(trans_t* t, size_t size) { trans_rec_alloc_exp(t, T_Const(size)); }
+
+Temp_temp trans_rec_alloc(trans_t* t, size_t size) { return trans_rec_alloc_exp(t, T_Const(size)); }
 
 void trans_rec_field_init(trans_t* t, Temp_temp rec, size_t off, T_exp src) {
 
@@ -613,46 +410,45 @@ void trans_start_loop(trans_t* t, T_exp test, Temp_label start, Temp_label end) 
 
   TRANS_SEM_ERR_RET();
 
-  t->ir = T_Seq(t->ir, T_Seq(T_Label(start), T_Cjump(test, NULL, end)));
+  t->ir = T_Seq(t->ir, stm_loop_start(test, start, end));
 }
 
 void trans_end_loop(trans_t* t, Temp_label start, Temp_label end) {
 
   TRANS_SEM_ERR_RET();
 
-  t->ir = T_Seq(t->ir, T_Seq(T_Jump(T_Name(start), Temp_LabelList(start, NULL)), T_Label(end)));
+  t->ir = T_Seq(t->ir, stm_loop_end(start, end));
 }
 
+// the loop body is whatever was translated into t so far
 void trans_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi) {
-
-  T_stm body;
-  T_exp idx;
-  Temp_label start;
-  Temp_label end;
 
   TRANS_SEM_ERR_RET();
 
-  body = t->ir;
-  t->ir = NULL;
-
-  start = Temp_newlabel();
-  end = Temp_newlabel();
-
-  // init
-  trans_var_store_exp(t, var, lo);
-
-  // loop check, I had to create the access exp and then pop  
-  trans_var_access(t, var);
-  idx = trans_pop_exp(t);
-  trans_start_loop(t, T_Op(T_ne, idx, hi), start, end);
-
-  t->ir = T_Seq(t->ir, body);
-
-  // post increment
-  trans_var_access(t, var);
-  idx = trans_pop_exp(t);
-  trans_var_store_exp(t, var, T_Op(T_plus, idx, T_Const(1)));
-
-  trans_end_loop(t, start, end);
+  t->ir = stm_for_loop(t, var, lo, hi, t->ir);
 }
 
+// size goes in a temp since both the alloc and the init loop use it
+Temp_temp trans_arr_alloc(trans_t* t, T_exp sz, T_exp init) {
+
+  Temp_temp arr = NULL;
+  Temp_temp sz_tmp;
+
+  TRANS_SEM_ERR_RET(NULL);
+
+  if (!sz || !init)
+    goto out;
+
+  sz_tmp = Temp_newtemp();
+  trans_assign_exp(t, T_Temp(sz_tmp), sz);
+
+  arr = trans_rec_alloc_exp(t, T_Temp(sz_tmp));
+
+  if (!arr)
+    goto out;
+
+  t->ir = T_Seq(t->ir, stm_arr_init(arr, sz_tmp, init));
+
+out:
+  return arr;
+}

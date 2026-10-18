@@ -16,3 +16,8 @@ T_stm stm_var_write(trans_t* t, T_exp src, S_symbol s);
 T_stm stm_pop(T_exp dst);
 T_stm stm_push(T_exp src);
 
+
+T_stm stm_loop_start(T_exp test, Temp_label start, Temp_label end);
+T_stm stm_loop_end(Temp_label start, Temp_label end);
+T_stm stm_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi, T_stm body);
+T_stm stm_arr_init(Temp_temp arr, Temp_temp sz, T_exp init);

@@ -411,6 +411,48 @@ Ty_ty sem_trans_for_exp(trans_t* tr, A_exp e) {
   return Ty_Void();
 }
 
+Ty_ty sem_trans_array_exp(trans_t* tr, A_exp e) {
+
+  Ty_ty t;
+  Ty_ty init_ty;
+  Ty_ty actual;
+  T_exp hi;
+  T_exp body;
+  Temp_temp rec_tmp;
+
+  t = sem_sym_ty_get(e->pos, g_symtab, e->u.array.typ);
+
+  if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, e->u.array.size)))
+    EM_semantic_error(e->pos, "invalid size type");
+
+  // hi
+  hi = trans_pop_exp(tr);
+  hi = T_Op(T_mul, hi, T_Const(WORD_SZ));
+
+  init_ty = sem_trans_exp(tr, e->u.array.init);
+  actual = sem_sym_ty_actual(t);
+
+  // body
+  body = trans_pop_exp(tr);
+
+  if (!actual) 
+    goto out;
+
+  if (actual->kind != Ty_array) {
+    EM_semantic_error(e->pos, "type is not an array");
+    goto out;
+  }
+
+  if (!sem_sym_ty_eq(actual->u.array, init_ty))
+    EM_semantic_error(e->pos, "arr init val not of valid type");
+
+  rec_tmp = trans_arr_alloc(tr, hi, body);
+  trans_temp_exp(tr, rec_tmp);
+
+out:
+  return t;
+}
+
 Ty_ty sem_trans_let_exp(trans_t* tr, A_exp e) {
 
   Ty_ty t;
@@ -429,51 +471,6 @@ Ty_ty sem_trans_let_exp(trans_t* tr, A_exp e) {
   trans_free(&t_temp);
   S_endScope(g_symtab);
 
-  return t;
-}
-
-Ty_ty sem_trans_array_exp(trans_t* tr, A_exp e) {
-
-  Ty_ty t;
-  Ty_ty init_ty;
-  Ty_ty actual;
-  T_exp src;
-  T_exp dst;
-  Temp_temp rec_tmp;
-
-  t = sem_sym_ty_get(e->pos, g_symtab, e->u.array.typ);
-
-  if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, e->u.array.size)))
-    EM_semantic_error(e->pos, "invalid size type");
-
-  // hi
-  src = trans_pop_exp(tr);
-  src = T_Op(T_mul, src, T_Const(WORD_SZ));
-
-  init_ty = sem_trans_exp(tr, e->u.array.init);
-  actual = sem_sym_ty_actual(t);
-
-  // body
-  dst = trans_pop_exp(tr);
-
-  if (!actual) 
-    goto out;
-
-  if (actual->kind != Ty_array) {
-    EM_semantic_error(e->pos, "type is not an array");
-    goto out;
-  }
-
-  if (!sem_sym_ty_eq(actual->u.array, init_ty))
-    EM_semantic_error(e->pos, "arr init val not of valid type");
-
-  rec_tmp = trans_rec_alloc_exp(tr, src);
-
-  // TODO: for loop initializing each idx with dst (init val)
-
-  trans_temp_exp(tr, rec_tmp);
-
-out:
   return t;
 }
 
