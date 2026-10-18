@@ -1,6 +1,7 @@
 #pragma once
 
 #include "symbol.h"
+#include "absyn.h"
 #include "temp.h"
 #include "tree.h"
 #include "frame.h"
@@ -18,6 +19,7 @@ typedef struct tfl_t tfl_t;
 struct trans_fun_t {
   S_symbol sym;
   Temp_label label;
+  int param_count;
   T_stm ir;
 };
 
@@ -47,8 +49,15 @@ void trans_add_local(trans_t* t, S_symbol s, size_t sz);
 void trans_add_ty(trans_t* t, S_symbol s, frame_field_t* fields);
 frame_field_t* trans_ty_fields_get(trans_t* t, S_symbol s);
 
+T_stm trans_pop_stm(trans_t* t);
 T_exp trans_pop_exp(trans_t* t);
+T_stmList trans_pop_funcall_params(trans_t* t, int count);
+
+void trans_start_loop(trans_t* t, T_exp test, Temp_label start, Temp_label end);
+void trans_end_loop(trans_t* t, Temp_label start, Temp_label end);
+
 void trans_assign_exp(trans_t* t, T_exp dst, T_exp src);
+void trans_oper_exp(trans_t* t, A_oper ast_oper, T_exp left, T_exp right);
 
 void trans_prologue(trans_t* t);
 void trans_epilogue(trans_t* t);

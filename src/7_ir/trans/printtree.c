@@ -27,11 +27,9 @@ static const char *safe_temp(Temp_temp t) {
   return t ? safe_str(Temp_look(Temp_name(), t)) : "NULL";
 }
 
-static char bin_oper[][12] = {
+static char oper[][12] = {
   "PLUS", "MINUS", "TIMES", "DIVIDE",
-  "AND", "OR", "LSHIFT", "RSHIFT", "ARSHIFT", "XOR"};
-
-static char rel_oper[][12] = {
+  "AND", "OR", "LSHIFT", "RSHIFT", "ARSHIFT", "XOR",
   "EQ", "NE", "LT", "GT", "LE", "GE", "ULT", "ULE", "UGT", "UGE"};
 
 static void pr_exp(FILE *out, T_exp exp)
@@ -39,11 +37,11 @@ static void pr_exp(FILE *out, T_exp exp)
   if (!exp) {
     fprintf(out, "NULL");
   } else switch (exp->kind) {
-  case T_BINOP:
-    fprintf(out, "BINOP(%s, ", bin_oper[exp->u.BINOP.op]);
-    pr_exp(out, exp->u.BINOP.left);
+  case T_OP:
+    fprintf(out, "OP(%s, ", oper[exp->u.OP.op]);
+    pr_exp(out, exp->u.OP.left);
     fprintf(out, ", ");
-    pr_exp(out, exp->u.BINOP.right);
+    pr_exp(out, exp->u.OP.right);
     fprintf(out, ")");
     break;
   case T_MEM:
@@ -70,6 +68,10 @@ static void pr_exp(FILE *out, T_exp exp)
   case T_CALL:
     fprintf(out, "CALL(");
     pr_exp(out, exp->u.CALL.fun);
+    for (T_stmList args = exp->u.CALL.args; args; args = args->tail) {
+      fprintf(out, ", ");
+      pr_stm_inline(out, args->head);
+    }
     fprintf(out, ")");
     break;
   }
@@ -91,10 +93,8 @@ static void pr_stm_body(FILE *out, T_stm stm)
     fprintf(out, ")");
     break;
   case T_CJUMP:
-    fprintf(out, "CJUMP(%s, ", rel_oper[stm->u.CJUMP.op]);
-    pr_exp(out, stm->u.CJUMP.left);
-    fprintf(out, ", ");
-    pr_exp(out, stm->u.CJUMP.right);
+    fprintf(out, "CJUMP(");
+    pr_exp(out, stm->u.CJUMP.cond);
     fprintf(out, ", %s, %s)", safe_sym(stm->u.CJUMP.tr), safe_sym(stm->u.CJUMP.fa));
     break;
   case T_MOVE:

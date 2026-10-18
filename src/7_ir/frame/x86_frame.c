@@ -116,6 +116,7 @@ void frame_add_formal(frame_t* frame, S_symbol sym) {
 
   f->head = frame_access(sym, false, count);
   f->tail = fal(NULL, NULL);
+  frame->param_count += 1;
 
   // in the IR, I need to store the param here
   frame_add_local(frame, sym, WORD_SZ);

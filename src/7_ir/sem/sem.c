@@ -516,6 +516,8 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
   T_exp src;
   T_exp dst;
   Temp_temp rec_tmp;
+  Temp_label loop_start_tmp;
+  Temp_label loop_end_tmp;
 
   trans_t* t_temp = NULL;
 
@@ -570,10 +572,15 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
     case A_opExp:
 
       t = sem_trans_exp(tr, e->u.op.left);
+      src = trans_pop_exp(tr);
+
       t2 = sem_trans_exp(tr, e->u.op.right);
+      dst = trans_pop_exp(tr);
 
       if (!oper_types_ok(e->u.op.oper, t, t2))
         EM_semantic_error(e->pos, "invalid operation on type");
+
+      trans_oper_exp(tr, e->u.op.oper, src, dst);
 
       t = Ty_Int();
 
@@ -651,8 +658,16 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
       if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, e->u.whilee.test)))
         EM_semantic_error(e->pos, "invalid while test type");
 
+      src = trans_pop_exp(tr);
+      loop_start_tmp = Temp_newlabel();
+      loop_end_tmp = Temp_newlabel();
+
+      trans_start_loop(tr, src, loop_start_tmp, loop_end_tmp);
+
       if (!sem_sym_ty_eq(Ty_Void(), sem_trans_exp(tr, e->u.whilee.body)))
         EM_semantic_error(e->pos, "while body must not return a value");
+
+      trans_end_loop(tr, loop_start_tmp, loop_end_tmp);
 
       break;
 
@@ -724,7 +739,7 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
       if (!sem_sym_ty_eq(t3->u.array, t2))
         EM_semantic_error(e->pos, "arr init val not of valid type");
 
-      rec_tmp = trans_rec_alloc_exp(tr, T_Binop(T_mul, src, T_Const(WORD_SZ)));
+      rec_tmp = trans_rec_alloc_exp(tr, T_Op(T_mul, src, T_Const(WORD_SZ)));
 
       // TODO: for loop initializing each idx with dst (init val)
 

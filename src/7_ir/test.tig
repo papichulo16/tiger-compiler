@@ -7,7 +7,7 @@ let
   var arr := intarr [5] of 0
   var huh := shit {a=6, b=7}
 
-  function f(a:int) : int = (
+  function f(a:int, n:int) : int = (
     let
       var x := 10
       function g(b:int) : int = a + b
@@ -16,6 +16,7 @@ let
     end
   )
 in 
-  f(balls);
+  f(balls, 67);
   arr[balls] := 2;
+  while balls < 5 do ( balls := balls+1; huh.a := huh.a - 1)
 end

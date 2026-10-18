@@ -31,6 +31,7 @@ struct frame_t {
   frame_ty_t* tys;
 
   size_t stack_size;
+  int param_count;
 
 };
 

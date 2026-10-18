@@ -34,18 +34,18 @@ T_stm find_frame(trans_t* t, S_symbol s) {
 
 T_stm stm_push(T_exp src) {
 
-  return T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))), 
+  return T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Op(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))), 
       T_Move(T_Mem(T_Name(Temp_namedlabel("sp"))), src));
 }
 
 T_stm stm_pop(T_exp dst) {
 
   return T_Seq(T_Move(dst, T_Mem(T_Name(Temp_namedlabel("sp")))),
-      T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_plus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))));
+      T_Move(T_Name(Temp_namedlabel("sp")), T_Op(T_plus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))));
 }
 
 T_stm stm_resv_frame(int stack_sz) {
-  return T_Move(T_Name(Temp_namedlabel("sp")), T_Binop(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(stack_sz)));
+  return T_Move(T_Name(Temp_namedlabel("sp")), T_Op(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(stack_sz)));
 }
 
 
@@ -124,7 +124,7 @@ T_stm stm_var_access(trans_t* t, S_symbol s) {
   }
 
   var = frame_local_get(t->frame, s);
-  stm = T_Seq(stm, T_Exp(T_Mem(T_Binop(T_minus, T_Name(Temp_namedlabel(found ? "fp" : regs[MAX_PARAMS+2])), T_Const(var->stack_off)))));
+  stm = T_Seq(stm, T_Exp(T_Mem(T_Op(T_minus, T_Name(Temp_namedlabel(found ? "fp" : regs[MAX_PARAMS+2])), T_Const(var->stack_off)))));
 
   t->frame = frame;
   return stm;

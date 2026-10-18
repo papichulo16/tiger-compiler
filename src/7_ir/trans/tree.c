@@ -39,11 +39,10 @@ T_stm T_Jump(T_exp exp, Temp_labelList labels)
  return p;
 }
 
-T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, 
-	      Temp_label tr, Temp_label fa)
+T_stm T_Cjump(T_exp cond, Temp_label tr, Temp_label fa)
 {T_stm p = (T_stm) checked_malloc(sizeof *p);
  p->kind=T_CJUMP;
- p->u.CJUMP.op=op; p->u.CJUMP.left=left; p->u.CJUMP.right=right;
+ p->u.CJUMP.cond=cond;
  p->u.CJUMP.tr=tr;
  p->u.CJUMP.fa=fa;
  return p;
@@ -64,12 +63,12 @@ T_stm T_Exp(T_exp exp)
  return p;
 }
  
-T_exp T_Binop(T_binOp op, T_exp left, T_exp right)
+T_exp T_Op(T_op op, T_exp left, T_exp right)
 {T_exp p = (T_exp) checked_malloc(sizeof *p);
- p->kind=T_BINOP;
- p->u.BINOP.op=op;
- p->u.BINOP.left=left;
- p->u.BINOP.right=right;
+ p->kind=T_OP;
+ p->u.OP.op=op;
+ p->u.OP.left=left;
+ p->u.OP.right=right;
  return p;
 }
  
@@ -109,14 +108,15 @@ T_exp T_Const(int consti)
  return p;
 }
  
-T_exp T_Call(T_exp fun)
+T_exp T_Call(T_exp fun, T_stmList args)
 {T_exp p = (T_exp) checked_malloc(sizeof *p);
  p->kind=T_CALL;
  p->u.CALL.fun=fun;
+ p->u.CALL.args=args;
  return p;
 }
 
-T_relOp T_notRel(T_relOp r)
+T_op T_notRel(T_op r)
 {
  switch(r)
    {case T_eq: return T_ne;
@@ -129,11 +129,12 @@ T_relOp T_notRel(T_relOp r)
     case T_uge: return T_ult;
     case T_ule: return T_ugt ;
     case T_ugt: return T_ule;
+    default: break;
   }
  assert(0); return 0;
 }
 
-T_relOp T_commute(T_relOp r)
+T_op T_commute(T_op r)
 {switch(r) {
     case T_eq: return T_eq;
     case T_ne: return T_ne;
@@ -145,6 +146,7 @@ T_relOp T_commute(T_relOp r)
     case T_uge: return T_ule;
     case T_ule: return T_uge ;
     case T_ugt: return T_ult;
+    default: break;
    }
  assert(0); return 0;
 }

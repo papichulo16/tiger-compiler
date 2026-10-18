@@ -21,6 +21,11 @@ static char* g_stdlib_names[] = {
   "size", "substring", "concat", "not", "exit", "__ALLOC"
 };
 
+static int g_stdlib_param_counts[] = {
+  1, 0, 0, 1, 1,
+  1, 3, 2, 1, 1, 1
+};
+
 #define STDLIB_FUN_COUNT (sizeof(g_stdlib_names) / sizeof(*g_stdlib_names))
 
 static S_symbol g_stdlib_funs[STDLIB_FUN_COUNT];
@@ -34,18 +39,21 @@ static void trans_stdlib_init(void) {
   g_stdlib_init = 1;
 }
 
-int trans_is_stdlib_fun(S_symbol s) {
+static int trans_stdlib_idx(S_symbol s) {
 
-  int found = 0;
+  int idx = -1;
 
   if (!g_stdlib_init)
     trans_stdlib_init();
 
-  for (size_t i = 0; i < STDLIB_FUN_COUNT && !found; i++)
-    found = (g_stdlib_funs[i] == s);
+  for (size_t i = 0; i < STDLIB_FUN_COUNT && idx < 0; i++)
+    if (g_stdlib_funs[i] == s)
+      idx = i;
 
-  return found;
+  return idx;
 }
+
+int trans_is_stdlib_fun(S_symbol s) { return trans_stdlib_idx(s) >= 0; }
 
 void print_trans(trans_t* t) {
 
@@ -99,6 +107,7 @@ trans_fun_t* trans_fun(S_symbol s) {
   
   f->sym = s;
   f->label = Temp_newlabel();
+  f->param_count = 0;
   f->ir = NULL;
 
   return f;
@@ -165,6 +174,7 @@ void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name) {
   TRANS_SEM_ERR_RET();
 
   f = trans_fun(name);
+  f->param_count = child->frame->param_count;
   f->ir = T_Seq(T_Label(f->label), child->ir);
 
   parent->fun_list = tfl(f, parent->fun_list);
@@ -173,25 +183,34 @@ void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name) {
   //printf("added fun '%s'\n", S_name(name));
 }
 
-Temp_label trans_fun_label(trans_t* t, S_symbol s) {
+static trans_fun_t* trans_fun_get(trans_t* t, S_symbol s) {
 
-  Temp_label label = NULL;
+  trans_fun_t* f = NULL;
 
-  TRANS_SEM_ERR_RET(NULL);
-
-  for (; t && !label; t = t->parent) {
+  for (; t && !f; t = t->parent) {
 
     for (tfl_t* l = t->fun_list; l; l = l->tail) {
 
       if (l->head && l->head->sym == s) {
 
-        label = l->head->label;
+        f = l->head;
         break;
       }
     }
   }
 
-  return label;
+  return f;
+}
+
+Temp_label trans_fun_label(trans_t* t, S_symbol s) {
+
+  trans_fun_t* f;
+
+  TRANS_SEM_ERR_RET(NULL);
+
+  f = trans_fun_get(t, s);
+
+  return f ? f->label : NULL;
 }
 
 void trans_append_child(trans_t* parent, trans_t* child) {
@@ -243,9 +262,7 @@ void trans_epilogue(trans_t* t) {
   t->ir = T_Seq(t->ir, stm_epilogue(t));
 }
 
-bool verify_right_exp(trans_t* t) {
-
-  T_stm init;
+bool verify_right_stm(trans_t* t) {
 
   if (!t->ir) {
 
@@ -259,13 +276,23 @@ bool verify_right_exp(trans_t* t) {
     exit(-1);
   }
 
-  init = t->ir->u.SEQ.right;
-
-  if (!init) {
+  if (!t->ir->u.SEQ.right) {
 
     printf("no init exp, should be temporary right??\n");
     return false;
   }
+
+  return true;
+}
+
+bool verify_right_exp(trans_t* t) {
+
+  T_stm init;
+
+  if (!verify_right_stm(t))
+    return false;
+
+  init = t->ir->u.SEQ.right;
 
   if (init->kind != T_EXP) {
 
@@ -296,6 +323,63 @@ void trans_var_access(trans_t* t, S_symbol s) {
   free(stm);
 }
 
+T_op trans_oper_ir(A_oper ast_oper) {
+
+  T_op op = T_plus;
+
+  switch (ast_oper) {
+
+    case A_plusOp:
+      op = T_plus;
+      break;
+    case A_minusOp:
+      op = T_minus;
+      break;
+    case A_timesOp:
+      op = T_mul;
+      break;
+    case A_divideOp:
+      op = T_div;
+      break;
+    case A_andOp:
+      op = T_and;
+      break;
+    case A_orOp:
+      op = T_or;
+      break;
+    case A_eqOp:
+      op = T_eq;
+      break;
+    case A_neqOp:
+      op = T_ne;
+      break;
+    case A_ltOp:
+      op = T_lt;
+      break;
+    case A_leOp:
+      op = T_le;
+      break;
+    case A_gtOp:
+      op = T_gt;
+      break;
+    case A_geOp:
+      op = T_ge;
+      break;
+  }
+
+  return op;
+}
+
+void trans_oper_exp(trans_t* t, A_oper ast_oper, T_exp left, T_exp right) {
+
+  TRANS_SEM_ERR_RET();
+
+  if (!left || !right)
+    return;
+
+  t->ir = T_Seq(t->ir, T_Exp(T_Op(trans_oper_ir(ast_oper), left, right)));
+}
+
 void trans_arr_idx(trans_t* t) {
 
   T_exp subs;
@@ -303,14 +387,14 @@ void trans_arr_idx(trans_t* t) {
   TRANS_SEM_ERR_RET();
 
   subs = trans_pop_exp(t);
-  t->ir = T_Seq(t->ir, T_Exp(T_Binop(T_mul, subs, T_Const(WORD_SZ))));
+  t->ir = T_Seq(t->ir, T_Exp(T_Op(T_mul, subs, T_Const(WORD_SZ))));
 }
 
 void trans_off_access(trans_t* t, T_exp base, T_exp off) {
 
   TRANS_SEM_ERR_RET();
 
-  t->ir = T_Seq(t->ir, T_Exp(T_Mem(T_Binop(T_plus, base, off))));
+  t->ir = T_Seq(t->ir, T_Exp(T_Mem(T_Op(T_plus, base, off))));
 }
 
 // the main var needs to have been accessed last
@@ -321,7 +405,7 @@ void trans_field_access(trans_t* t, size_t off) {
   if (!verify_right_exp(t))
     return;
 
-  t->ir->u.SEQ.right = T_Exp(T_Mem(T_Binop(T_plus, t->ir->u.SEQ.right->u.EXP, T_Const(off))));
+  t->ir->u.SEQ.right = T_Exp(T_Mem(T_Op(T_plus, t->ir->u.SEQ.right->u.EXP, T_Const(off))));
 }
 
 void trans_var_store(trans_t* t, S_symbol s) {
@@ -352,19 +436,32 @@ void trans_funcall_param(trans_t* t, int reg) {
 
 void trans_funcall(trans_t* t, S_symbol fun) {
 
-  Temp_label label;
+  Temp_label label = NULL;
+  trans_fun_t* f;
+  T_stmList params;
+  int param_count = 0;
+  int stdlib_idx;
 
   TRANS_SEM_ERR_RET();
 
-  if (trans_is_stdlib_fun(fun))
+  stdlib_idx = trans_stdlib_idx(fun);
+
+  if (stdlib_idx >= 0) {
+
     label = Temp_namedlabel(S_name(fun));
-  else
-    label = trans_fun_label(t, fun);
+    param_count = g_stdlib_param_counts[stdlib_idx];
+
+  } else if ((f = trans_fun_get(t, fun))) {
+
+    label = f->label;
+    param_count = f->param_count;
+  }
 
   if (!label)
     return;
 
-  t->ir = T_Seq(t->ir, T_Exp(T_Call(T_Name(label))));
+  params = trans_pop_funcall_params(t, param_count);
+  t->ir = T_Seq(t->ir, T_Exp(T_Call(T_Name(label), params)));
 }
 
 void trans_int_exp(trans_t* t, int n) {
@@ -374,10 +471,29 @@ void trans_int_exp(trans_t* t, int n) {
   t->ir = T_Seq(t->ir, T_Exp(T_Const(n)));
 }
 
-// it doesnt do a pop expression, just takes out the actual last expression
-T_exp trans_pop_exp(trans_t* t) {
+T_stm trans_pop_stm(trans_t* t) {
 
   T_stm top;
+  T_stm s = NULL;
+
+  TRANS_SEM_ERR_RET(NULL);
+
+  if (!verify_right_stm(t))
+    goto out;
+
+  top = t->ir;
+  s = top->u.SEQ.right;
+
+  t->ir = top->u.SEQ.left;
+  free(top);
+
+out:
+  return s;
+}
+
+T_exp trans_pop_exp(trans_t* t) {
+
+  T_stm s;
   T_exp e = NULL;
 
   TRANS_SEM_ERR_RET(NULL);
@@ -385,15 +501,33 @@ T_exp trans_pop_exp(trans_t* t) {
   if (!verify_right_exp(t))
     goto out;
 
-  top = t->ir;
-  e = top->u.SEQ.right->u.EXP;
+  s = trans_pop_stm(t);
+  e = s->u.EXP;
 
-  t->ir = top->u.SEQ.left;
-  free(top->u.SEQ.right);
-  free(top);
+  free(s);
 
 out:
   return e;
+}
+
+T_stmList trans_pop_funcall_params(trans_t* t, int count) {
+
+  T_stmList params = NULL;
+  T_stm s;
+
+  TRANS_SEM_ERR_RET(NULL);
+
+  for (int i = 0; i < count; i++) {
+
+    s = trans_pop_stm(t);
+
+    if (!s)
+      break;
+
+    params = T_StmList(s, params);
+  }
+
+  return params;
 }
 
 void trans_assign_exp(trans_t* t, T_exp dst, T_exp src) {
@@ -446,7 +580,7 @@ void trans_rec_field_init(trans_t* t, Temp_temp rec, size_t off, T_exp src) {
   if (!rec)
     return;
 
-  trans_assign_exp(t, T_Mem(T_Binop(T_plus, T_Temp(rec), T_Const(off))), src);
+  trans_assign_exp(t, T_Mem(T_Op(T_plus, T_Temp(rec), T_Const(off))), src);
 }
 
 void trans_temp_exp(trans_t* t, Temp_temp tmp) {
@@ -457,5 +591,19 @@ void trans_temp_exp(trans_t* t, Temp_temp tmp) {
     return;
 
   t->ir = T_Seq(t->ir, T_Exp(T_Temp(tmp)));
+}
+
+void trans_start_loop(trans_t* t, T_exp test, Temp_label start, Temp_label end) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, T_Seq(T_Label(start), T_Cjump(test, NULL, end)));
+}
+
+void trans_end_loop(trans_t* t, Temp_label start, Temp_label end) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, T_Seq(T_Jump(T_Name(start), Temp_LabelList(start, NULL)), T_Label(end)));
 }
 
