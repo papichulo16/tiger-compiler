@@ -724,7 +724,7 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
       if (!sem_sym_ty_eq(t3->u.array, t2))
         EM_semantic_error(e->pos, "arr init val not of valid type");
 
-      rec_tmp = trans_rec_alloc_exp(tr, src);
+      rec_tmp = trans_rec_alloc_exp(tr, T_Binop(T_mul, src, T_Const(WORD_SZ)));
 
       // TODO: for loop initializing each idx with dst (init val)
 

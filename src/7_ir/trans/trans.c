@@ -396,24 +396,6 @@ out:
   return e;
 }
 
-void trans_alloc_exp(trans_t* t, T_exp e) {
-
-  TRANS_SEM_ERR_RET();
-
-  t->ir = T_Seq(t->ir, T_Exp(T_Binop(T_mul, e, T_Const(WORD_SZ))));
-  trans_funcall_param(t, 0);
-  trans_funcall(t, S_Symbol("__ALLOC"));
-}
-
-void trans_alloc(trans_t* t, size_t size) {
-
-  TRANS_SEM_ERR_RET();
-
-  t->ir = T_Seq(t->ir, T_Exp(T_Const(size)));
-  trans_funcall_param(t, 0);
-  trans_funcall(t, S_Symbol("__ALLOC"));
-}
-
 void trans_assign_exp(trans_t* t, T_exp dst, T_exp src) {
 
   TRANS_SEM_ERR_RET();
@@ -422,6 +404,15 @@ void trans_assign_exp(trans_t* t, T_exp dst, T_exp src) {
     return;
 
   t->ir = T_Seq(t->ir, T_Move(dst, src));
+}
+
+void trans_alloc_exp(trans_t* t, T_exp e) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, T_Exp(e));
+  trans_funcall_param(t, 0);
+  trans_funcall(t, S_Symbol("__ALLOC"));
 }
 
 // the record ptr is in a tmp while i populate the rec
@@ -444,26 +435,9 @@ Temp_temp trans_rec_alloc_exp(trans_t* t, T_exp e) {
 out:
   return rec;
 }
-// the record ptr is in a tmp while i populate the rec
-Temp_temp trans_rec_alloc(trans_t* t, size_t size) {
 
-  Temp_temp rec = NULL;
-  T_exp call;
-
-  TRANS_SEM_ERR_RET(NULL);
-
-  trans_alloc(t, size);
-  call = trans_pop_exp(t);
-
-  if (!call)
-    goto out;
-
-  rec = Temp_newtemp();
-  trans_assign_exp(t, T_Temp(rec), call);
-
-out:
-  return rec;
-}
+void trans_alloc(trans_t* t, size_t size) { trans_alloc_exp(t, T_Const(size)); }
+Temp_temp trans_rec_alloc(trans_t* t, size_t size) { trans_rec_alloc_exp(t, T_Const(size)); }
 
 void trans_rec_field_init(trans_t* t, Temp_temp rec, size_t off, T_exp src) {
 
