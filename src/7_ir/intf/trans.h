@@ -55,6 +55,8 @@ void trans_epilogue(trans_t* t);
 
 void trans_var_access(trans_t* t, S_symbol s);
 void trans_field_access(trans_t* t, size_t off);
+void trans_off_access(trans_t* t, T_exp base, T_exp off);
+void trans_arr_idx(trans_t* t);
 void trans_var_store(trans_t* t, S_symbol s);
 void trans_funcall_param(trans_t* t, int reg);
 void trans_funcall(trans_t* t, S_symbol fun);
@@ -62,7 +64,9 @@ int trans_is_stdlib_fun(S_symbol s);
 void trans_int_exp(trans_t* t, int n);
 
 void trans_alloc(trans_t* t, size_t size);
+void trans_alloc_exp(trans_t* t, T_exp e);
 Temp_temp trans_rec_alloc(trans_t* t, size_t size);
+Temp_temp trans_rec_alloc_exp(trans_t* t, T_exp e);
 void trans_rec_field_init(trans_t* t, Temp_temp rec, size_t off, T_exp src);
 void trans_temp_exp(trans_t* t, Temp_temp tmp);
 

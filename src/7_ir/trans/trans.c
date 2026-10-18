@@ -286,10 +286,31 @@ void trans_var_access(trans_t* t, S_symbol s) {
 
   stm = stm_var_access(t, s);
 
-  // who would have thought AVL trees would come in handy
+  // local vars have no frame walk on the left and dont leave an empty seq behind
+  // also who would have thought AVL trees would come in handy
   // just rotating so the exp stays on the right, should be harmless
-  t->ir = T_Seq(T_Seq(t->ir, stm->u.SEQ.left), stm->u.SEQ.right);
+  if (stm->u.SEQ.left)
+    t->ir = T_Seq(T_Seq(t->ir, stm->u.SEQ.left), stm->u.SEQ.right);
+  else
+    t->ir = T_Seq(t->ir, stm->u.SEQ.right);
   free(stm);
+}
+
+void trans_arr_idx(trans_t* t) {
+
+  T_exp subs;
+
+  TRANS_SEM_ERR_RET();
+
+  subs = trans_pop_exp(t);
+  t->ir = T_Seq(t->ir, T_Exp(T_Binop(T_mul, subs, T_Const(WORD_SZ))));
+}
+
+void trans_off_access(trans_t* t, T_exp base, T_exp off) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, T_Exp(T_Mem(T_Binop(T_plus, base, off))));
 }
 
 // the main var needs to have been accessed last
@@ -375,6 +396,15 @@ out:
   return e;
 }
 
+void trans_alloc_exp(trans_t* t, T_exp e) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, T_Exp(T_Binop(T_mul, e, T_Const(WORD_SZ))));
+  trans_funcall_param(t, 0);
+  trans_funcall(t, S_Symbol("__ALLOC"));
+}
+
 void trans_alloc(trans_t* t, size_t size) {
 
   TRANS_SEM_ERR_RET();
@@ -394,6 +424,26 @@ void trans_assign_exp(trans_t* t, T_exp dst, T_exp src) {
   t->ir = T_Seq(t->ir, T_Move(dst, src));
 }
 
+// the record ptr is in a tmp while i populate the rec
+Temp_temp trans_rec_alloc_exp(trans_t* t, T_exp e) {
+
+  Temp_temp rec = NULL;
+  T_exp call;
+
+  TRANS_SEM_ERR_RET(NULL);
+
+  trans_alloc_exp(t, e);
+  call = trans_pop_exp(t);
+
+  if (!call)
+    goto out;
+
+  rec = Temp_newtemp();
+  trans_assign_exp(t, T_Temp(rec), call);
+
+out:
+  return rec;
+}
 // the record ptr is in a tmp while i populate the rec
 Temp_temp trans_rec_alloc(trans_t* t, size_t size) {
 

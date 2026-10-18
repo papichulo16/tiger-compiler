@@ -366,6 +366,24 @@ void sem_trans_dec(trans_t* t, A_dec d) {
   free(d);
 }
 
+bool g_idx = false;
+
+void handle_g_idx(trans_t* t) {
+
+  T_exp left;
+  T_exp right;
+
+  if (!g_idx)
+    return;
+
+  left = trans_pop_exp(t);
+  right = trans_pop_exp(t);
+
+  trans_off_access(t, left, right);
+
+  g_idx = false;
+}
+
 Ty_ty sem_trans_var(trans_t* tr, A_var v) {
 
   Ty_ty t = NULL;
@@ -380,6 +398,7 @@ Ty_ty sem_trans_var(trans_t* tr, A_var v) {
 
       t = sem_sym_var_get(g_symtab, v->u.simple); 
       trans_var_access(tr, v->u.simple);
+      handle_g_idx(tr);
       break;
 
     case A_fieldVar:
@@ -389,13 +408,20 @@ Ty_ty sem_trans_var(trans_t* tr, A_var v) {
       if (sem_sym_record_field_off(t, v->u.field.sym, &off))
         trans_field_access(tr, off);
 
+      handle_g_idx(tr);
+
       t = sem_sym_record_ty_get(t, v->u.field.sym);
+
       break;
 
     case A_subscriptVar:
 
       if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, v->u.subscript.exp)))
         EM_semantic_error(v->pos, "invalid index type");
+
+      trans_arr_idx(tr);
+      handle_g_idx(tr);
+      g_idx = true;
 
       t = sem_sym_ty_actual(sem_trans_var(tr, v->u.subscript.var));
       t = t && t->kind == Ty_array ? t->u.array : NULL;
@@ -680,8 +706,12 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
       if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, e->u.array.size)))
         EM_semantic_error(e->pos, "invalid size type");
 
+      src = trans_pop_exp(tr);
+
       t2 = sem_trans_exp(tr, e->u.array.init);
       t3 = sem_sym_ty_actual(t);
+
+      dst = trans_pop_exp(tr);
 
       if (!t3) 
         break;
@@ -693,6 +723,12 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
 
       if (!sem_sym_ty_eq(t3->u.array, t2))
         EM_semantic_error(e->pos, "arr init val not of valid type");
+
+      rec_tmp = trans_rec_alloc_exp(tr, src);
+
+      // TODO: for loop initializing each idx with dst (init val)
+
+      trans_temp_exp(tr, rec_tmp);
 
       break;
   }

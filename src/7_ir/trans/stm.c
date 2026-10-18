@@ -102,6 +102,9 @@ T_stm stm_var_access(trans_t* t, S_symbol s) {
 
   // THIS IS WRONG!!!!!!
   // FIX LATER!!!
+  // the book says the first param should always be a "static link"
+  // to the expected stack frame. that makes sense to the issue I 
+  // came up with the other day
   if (!var) {
 
     // MAX_PARAMS+1 is old fp

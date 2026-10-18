@@ -1,9 +1,11 @@
 let
   type shit = {a: int, b: int}
   type shitass = {a: int, b: shit}
+  type intarr = array of int
 
   var balls := 10
-  var n : shitass := shitass {a=1, b=shit{a=2, b=3}} 
+  var arr := intarr [5] of 0
+  var huh := shit {a=6, b=7}
 
   function f(a:int) : int = (
     let
@@ -15,4 +17,5 @@ let
   )
 in 
   f(balls);
+  arr[balls] := 2;
 end
