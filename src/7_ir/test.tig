@@ -4,7 +4,7 @@ let
   type intarr = array of int
 
   var balls := 10
-  var arr := intarr [5] of 0
+  var arr := intarr [5] of 3
   var huh := shit {a=6, b=7}
 
   function f(a:int, n:int) : int = (
@@ -16,8 +16,10 @@ let
     end
   )
 in 
-  f(balls, 67);
-  arr[balls] := 2;
-  while balls < 5 do ( balls := balls+1; huh.a := huh.a - 1);
-  for i:=0 to 10 do (balls := i);
+  for i := 0 to 5 do (
+
+    if balls > 8 then break;
+
+    balls := balls + 1
+  ) 
 end

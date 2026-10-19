@@ -57,7 +57,9 @@ T_stmList trans_pop_funcall_params(trans_t* t, int count);
 
 void trans_start_loop(trans_t* t, T_exp test, Temp_label start, Temp_label end);
 void trans_end_loop(trans_t* t, Temp_label start, Temp_label end);
-void trans_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi);
+void trans_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi, Temp_label end);
+void trans_if(trans_t* t, T_exp iff, T_stm then, T_stm elsee);
+void trans_break(trans_t* t);
 
 void trans_assign_exp(trans_t* t, T_exp dst, T_exp src);
 void trans_oper_exp(trans_t* t, A_oper ast_oper, T_exp left, T_exp right);
@@ -85,3 +87,5 @@ Temp_temp trans_arr_alloc(trans_t* t, T_exp sz, T_exp init);
 void trans_rec_field_init(trans_t* t, Temp_temp rec, size_t off, T_exp src);
 void trans_temp_exp(trans_t* t, Temp_temp tmp);
 
+void trans_tracker_push(Temp_label v);
+Temp_label trans_tracker_pop();

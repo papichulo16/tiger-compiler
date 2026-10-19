@@ -327,11 +327,17 @@ Ty_ty sem_trans_if_exp(trans_t* tr, A_exp e) {
   Ty_ty t = Ty_Void();
   Ty_ty then_ty;
   Ty_ty else_ty;
+  T_exp test = NULL;
+  T_stm if_body = NULL;
+  T_stm else_body = NULL;
 
   if (!sem_sym_ty_eq(Ty_Int(), sem_trans_exp(tr, e->u.iff.test)))
     EM_semantic_error(e->pos, "invalid if test type");
 
+  test = trans_pop_exp(tr);
+
   then_ty = sem_trans_exp(tr, e->u.iff.then);
+  if_body = trans_pop_stm(tr);
 
   if (!e->u.iff.elsee) {
 
@@ -342,6 +348,7 @@ Ty_ty sem_trans_if_exp(trans_t* tr, A_exp e) {
   }
 
   else_ty = sem_trans_exp(tr, e->u.iff.elsee);
+  else_body = trans_pop_stm(tr);
   t = then_ty;
 
   if (!sem_sym_ty_eq(then_ty, else_ty))
@@ -351,6 +358,8 @@ Ty_ty sem_trans_if_exp(trans_t* tr, A_exp e) {
     t = else_ty;
 
 out:
+  trans_if(tr, test, if_body, else_body);
+
   return t;
 }
 
@@ -383,6 +392,7 @@ Ty_ty sem_trans_for_exp(trans_t* tr, A_exp e) {
   Ty_ty hi_ty;
   T_exp lo;
   T_exp hi;
+  Temp_label end;
   trans_t* t_temp;
 
   lo_ty = sem_trans_exp(tr, e->u.forr.lo);
@@ -399,10 +409,14 @@ Ty_ty sem_trans_for_exp(trans_t* tr, A_exp e) {
 
   sem_sym_var_add(e->pos, t_temp, g_symtab, e->u.forr.var, Ty_Int(), false);
 
+  end = Temp_newlabel();
+  trans_tracker_push(end);
+
   if (!sem_sym_ty_eq(Ty_Void(), sem_trans_exp(t_temp, e->u.forr.body)))
     EM_semantic_error(e->pos, "for body must not return a value");
 
-  trans_for_loop(t_temp, e->u.forr.var, lo, hi);
+  trans_for_loop(t_temp, e->u.forr.var, lo, hi, end);
+  trans_tracker_pop();
 
   trans_append_child(tr, t_temp);
   trans_free(&t_temp);
@@ -544,6 +558,7 @@ Ty_ty sem_trans_exp(trans_t* tr, A_exp e) {
       break;
 
     case A_breakExp:
+      trans_break(tr);
       break;
 
     case A_letExp:

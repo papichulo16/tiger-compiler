@@ -12,6 +12,47 @@
 #include "tree.h"
 #include "stm.h"
 
+struct tracker {
+  Temp_label l;
+  void* n;
+};
+
+struct tracker* track_head = NULL;
+
+void loop_tracker_push(Temp_label v) {
+
+  struct tracker* t = malloc(sizeof(struct tracker));
+
+  t->l = v;
+  t->n = track_head;
+
+  track_head = t;
+}
+
+Temp_label loop_tracker_pop() {
+
+  struct tracker* p = track_head;
+  Temp_label l = NULL;
+
+  if (p) {
+
+    l = p->l;
+    track_head = (struct tracker *) p->n;
+
+    free(p);
+  }
+
+  return l;
+}
+
+static Temp_label loop_tracker_peek() {
+
+  if (track_head)
+    return track_head->l;
+
+  return NULL;
+}
+
 T_stm find_frame(trans_t* t, S_symbol s) {
 
   frame_access_t* var;
@@ -167,26 +208,36 @@ static T_stm stm_var_split(trans_t* t, S_symbol s, T_exp* e) {
 }
 
 T_stm stm_loop_start(T_exp test, Temp_label start, Temp_label end) {
+
+  loop_tracker_push(end);
   return T_Seq(T_Label(start), T_Cjump(test, NULL, end));
 }
 
 T_stm stm_loop_end(Temp_label start, Temp_label end) {
+
+  Temp_label e = loop_tracker_pop();
+
+  if (end != e) {
+
+    fprintf(stderr, "TRACKER MISMATCH ERROR\n");
+    exit(-1);
+  }
+
   return T_Seq(T_Jump(T_Name(start), Temp_LabelList(start, NULL)), T_Label(end));
 }
 
-T_stm stm_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi, T_stm body) {
+T_stm stm_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi, T_stm body, Temp_label end) {
 
   T_stm stm;
   T_exp idx;
   Temp_label start = Temp_newlabel();
-  Temp_label end = Temp_newlabel();
 
   // init
   stm = stm_var_write(t, lo, var);
 
   // check, uses the variable from init
   stm = T_Seq(stm, stm_var_split(t, var, &idx));
-  stm = T_Seq(stm, stm_loop_start(T_Op(T_ne, idx, hi), start, end));
+  stm = T_Seq(stm, stm_loop_start(T_Op(T_le, idx, hi), start, end));
 
   stm = T_Seq(stm, body);
 
@@ -197,6 +248,26 @@ T_stm stm_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi, T_stm body) {
   stm = T_Seq(stm, stm_loop_end(start, end));
 
   return stm;
+}
+
+T_stm stm_break() {
+
+  Temp_label l = loop_tracker_peek();
+  return T_Jump(T_Name(l), Temp_LabelList(l, NULL));
+}
+
+T_stm stm_if(T_exp iff, T_stm then, T_stm elsee) {
+
+  T_stm stm;
+  Temp_label l_else = Temp_newlabel();
+  Temp_label l_end = Temp_newlabel();
+
+  stm = T_Seq(T_Cjump(iff, NULL, elsee ? l_else : l_end), then);
+
+  if (elsee)
+    stm = T_Seq(stm, T_Seq(T_Jump(T_Name(l_end), Temp_LabelList(l_end, NULL)), T_Seq(T_Label(l_else), elsee)));
+
+  return T_Seq(stm, T_Label(l_end));
 }
 
 T_stm stm_arr_init(Temp_temp arr, Temp_temp sz, T_exp init) {

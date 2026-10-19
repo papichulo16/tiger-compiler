@@ -420,15 +420,27 @@ void trans_end_loop(trans_t* t, Temp_label start, Temp_label end) {
   t->ir = T_Seq(t->ir, stm_loop_end(start, end));
 }
 
-// the loop body is whatever was translated into t so far
-void trans_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi) {
+void trans_for_loop(trans_t* t, S_symbol var, T_exp lo, T_exp hi, Temp_label end) {
 
   TRANS_SEM_ERR_RET();
 
-  t->ir = stm_for_loop(t, var, lo, hi, t->ir);
+  t->ir = stm_for_loop(t, var, lo, hi, t->ir, end);
 }
 
-// size goes in a temp since both the alloc and the init loop use it
+void trans_if(trans_t* t, T_exp iff, T_stm then, T_stm elsee) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, stm_if(iff, then, elsee));
+}
+
+void trans_break(trans_t* t) {
+
+  TRANS_SEM_ERR_RET();
+
+  t->ir = T_Seq(t->ir, stm_break());
+}
+
 Temp_temp trans_arr_alloc(trans_t* t, T_exp sz, T_exp init) {
 
   Temp_temp arr = NULL;
@@ -452,3 +464,7 @@ Temp_temp trans_arr_alloc(trans_t* t, T_exp sz, T_exp init) {
 out:
   return arr;
 }
+
+void trans_tracker_push(Temp_label l) { loop_tracker_push(l); }
+Temp_label trans_tracker_pop() { return loop_tracker_pop(); }
+
