@@ -212,8 +212,8 @@ void sem_trans_fundec(trans_t* t, A_fundec f) {
   if (!sem_sym_ty_eq(res, sem_trans_exp(tmp, f->body)))
     EM_semantic_error(f->pos, "function body type does not match its return type");
 
-  trans_prologue(tmp);
-  trans_epilogue(tmp);
+  trans_prologue(tmp, true);
+  trans_epilogue(tmp, true);
   trans_add_fun(t, tmp, f->name);
 
   S_endScope(g_symtab);

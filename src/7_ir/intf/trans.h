@@ -64,8 +64,8 @@ void trans_break(trans_t* t);
 void trans_assign_exp(trans_t* t, T_exp dst, T_exp src);
 void trans_oper_exp(trans_t* t, A_oper ast_oper, T_exp left, T_exp right);
 
-void trans_prologue(trans_t* t);
-void trans_epilogue(trans_t* t);
+void trans_prologue(trans_t* t, bool is_fun);
+void trans_epilogue(trans_t* t, bool is_fun);
 
 void trans_var_access(trans_t* t, S_symbol s);
 void trans_field_access(trans_t* t, size_t off);
@@ -74,6 +74,7 @@ void trans_arr_idx(trans_t* t);
 void trans_var_store(trans_t* t, S_symbol s);
 void trans_var_store_exp(trans_t* t, S_symbol s, T_exp e);
 
+int trans_find_callee_static_link(trans_t* t, S_symbol call); // returns 1 if not stdlib
 void trans_funcall_param(trans_t* t, int reg);
 void trans_funcall(trans_t* t, S_symbol fun);
 int trans_is_stdlib_fun(S_symbol s);

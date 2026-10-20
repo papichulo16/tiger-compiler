@@ -53,18 +53,18 @@ static int trans_stdlib_idx(S_symbol s) {
 
 int trans_is_stdlib_fun(S_symbol s) { return trans_stdlib_idx(s) >= 0; }
 
-void trans_prologue(trans_t* t) {
+void trans_prologue(trans_t* t, bool is_fun) {
 
   TRANS_SEM_ERR_RET();
 
-  t->ir = T_Seq(stm_prologue(t), t->ir);
+  t->ir = T_Seq(stm_prologue(t, is_fun), t->ir);
 }
 
-void trans_epilogue(trans_t* t) {
+void trans_epilogue(trans_t* t, bool is_fun) {
 
   TRANS_SEM_ERR_RET();
 
-  t->ir = T_Seq(t->ir, stm_epilogue(t));
+  t->ir = T_Seq(t->ir, stm_epilogue(t, is_fun));
 }
 
 bool verify_right_stm(trans_t* t) {
@@ -246,6 +246,47 @@ void trans_funcall_param(trans_t* t, int reg) {
   t->ir->u.SEQ.right = T_Move(T_Name(Temp_namedlabel(regs[reg])), t->ir->u.SEQ.right->u.EXP);
 }
 
+int trans_find_callee_static_link(trans_t* t, S_symbol call) {
+
+  trans_t* tmp;
+  T_exp callee_frame;
+  bool found = false;
+
+  TRANS_SEM_ERR_RET(0);
+
+  if (trans_is_stdlib_fun(call))
+    return 0;
+
+  callee_frame = T_Name(Temp_namedlabel("fp"));
+
+  // i have given up good code, i just wanna be done with this chapter
+  for (tmp = t; !found ; tmp = tmp->parent) {
+
+    if (!tmp) {
+
+      fprintf(stderr, "woah woah woah partner\n");
+      exit(-1);
+    }
+
+    // check current scope
+    for (tfl_t* l = tmp->fun_list; l; l = l->tail) {
+
+      if (l->head && l->head->sym == call) {
+
+        found = true;
+        break;
+      }
+    }
+
+    if (!found)
+      callee_frame = T_Mem(callee_frame);
+  }
+
+  t->ir = T_Seq(t->ir, T_Move(T_Name(Temp_namedlabel(regs[0])), callee_frame));
+
+  return 1;
+}
+
 void trans_funcall(trans_t* t, S_symbol fun) {
 
   Temp_label label = NULL;
@@ -266,7 +307,7 @@ void trans_funcall(trans_t* t, S_symbol fun) {
   } else if ((f = trans_fun_get(t, fun))) {
 
     label = f->label;
-    param_count = f->param_count;
+    param_count = f->param_count + 1; // static link frame
   }
 
   if (!label)

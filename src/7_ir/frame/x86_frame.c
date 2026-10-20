@@ -108,7 +108,7 @@ void frame_add_formal(frame_t* frame, S_symbol sym) {
 
   for(; f->head ; f = f->tail, count++);
 
-  if (count > MAX_PARAMS) {
+  if (count > MAX_PARAMS-1) {
 
     printf("too many formals in params (max), need to implement this later\n");
     exit(-1);

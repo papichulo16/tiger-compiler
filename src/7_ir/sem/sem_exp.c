@@ -227,7 +227,8 @@ Ty_ty sem_trans_int_exp(trans_t* tr, A_exp e) {
 Ty_ty sem_trans_call_exp(trans_t* tr, A_exp e) {
 
   Ty_ty t = Ty_Void();
-  Ty_tyList tl = sem_trans_expl_funcall(tr, e->u.call.args, 0);
+  Ty_tyList tl; 
+
 
   if (!sem_sym_is_fun(g_symtab, e->u.call.func)) {
 
@@ -236,6 +237,8 @@ Ty_ty sem_trans_call_exp(trans_t* tr, A_exp e) {
   }
 
   if (t) {
+
+    tl = sem_trans_expl_funcall(tr, e->u.call.args, trans_find_callee_static_link(tr, e->u.call.func));
 
     t = sem_sym_type_get(g_symtab, e->u.call.func);
     cmp_call_params(e->pos, sem_sym_params_get(g_symtab, e->u.call.func), tl);
@@ -478,8 +481,8 @@ Ty_ty sem_trans_let_exp(trans_t* tr, A_exp e) {
   sem_trans_decl(t_temp, e->u.let.decs);
   t = sem_trans_exp(t_temp, e->u.let.body);
 
-  trans_prologue(t_temp);
-  trans_epilogue(t_temp);
+  trans_prologue(t_temp, false);
+  trans_epilogue(t_temp, false);
   trans_append_child(tr, t_temp);
 
   trans_free(&t_temp);

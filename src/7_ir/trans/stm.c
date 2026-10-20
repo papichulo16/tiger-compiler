@@ -95,10 +95,14 @@ T_stm stm_resv_frame(int stack_sz) {
 }
 
 
-T_stm stm_prologue(trans_t* t) {
+T_stm stm_prologue(trans_t* t, bool is_fun) {
 
-  T_stm stm = T_Seq(stm_push(T_Name(Temp_namedlabel("fp"))), 
-      T_Move(T_Name(Temp_namedlabel("fp")), T_Name(Temp_namedlabel("sp"))));
+  T_stm stm = stm_push(T_Name(Temp_namedlabel("fp")));
+
+  if (is_fun)
+    stm = T_Seq(stm, stm_push(T_Name(Temp_namedlabel(regs[0]))));
+
+  stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("fp")), T_Name(Temp_namedlabel("sp"))));
 
   if (t->frame->stack_size) {
 
@@ -109,12 +113,15 @@ T_stm stm_prologue(trans_t* t) {
   return stm;
 }
 
-T_stm stm_epilogue(trans_t* t) {
+T_stm stm_epilogue(trans_t* t, bool is_fun) {
 
   T_stm stm = stm_pop(T_Name(Temp_namedlabel("fp")));
 
+  if (is_fun)
+    stm = T_Seq(stm, stm_pop(T_Name(Temp_namedlabel("fp"))));
+
   if (t->frame->stack_size)
-    stm = T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Name(Temp_namedlabel("fp"))) , stm);
+    stm = T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Name(Temp_namedlabel("fp"))), stm);
 
   return stm;
 }
@@ -146,8 +153,6 @@ T_stm stm_var_access(trans_t* t, S_symbol s) {
 
   var = frame_local_get(frame, s);
 
-  // THIS IS WRONG!!!!!!
-  // FIX LATER!!!
   // the book says the first param should always be a "static link"
   // to the expected stack frame. that makes sense to the issue I 
   // came up with the other day

@@ -4,8 +4,8 @@
 #include "tree.h"
 #include "trans.h"
 
-T_stm stm_prologue(trans_t* t);
-T_stm stm_epilogue(trans_t* t);
+T_stm stm_prologue(trans_t* t, bool is_fun);
+T_stm stm_epilogue(trans_t* t, bool is_fun);
 
 T_stm stm_resv_frame(int stack_sz);
 T_stm stm_store_formals(trans_t* t);
