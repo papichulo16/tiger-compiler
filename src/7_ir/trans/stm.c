@@ -53,31 +53,6 @@ static Temp_label loop_tracker_peek() {
   return NULL;
 }
 
-T_stm find_frame(trans_t* t, S_symbol s) {
-
-  frame_access_t* var;
-  bool shared;
-
-  if (!t->frame) {
-
-    printf("this shouldnt hit\n");
-    return NULL;
-  }
-
-  var = frame_local_get(t->frame, s);
-
-  if (var)
-    return NULL;
-
-  shared = t->frame->shared;
-  t->frame = t->frame->static_link;
-
-  if (shared)
-    return find_frame(t, s);
-
-  return T_Seq(T_Move(T_Name(Temp_namedlabel("fp")), T_Mem(T_Name(Temp_namedlabel("fp")))), find_frame(t, s));
-}
-
 T_stm stm_push(T_exp src) {
 
   return T_Seq(T_Move(T_Name(Temp_namedlabel("sp")), T_Op(T_minus, T_Name(Temp_namedlabel("sp")), T_Const(WORD_SZ))), 
