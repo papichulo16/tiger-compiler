@@ -1,9 +1,0 @@
-let
-
-  var X := 10
-
-  function g() : int = f()
-  function f() : int = X
-in
-  f()
-end

@@ -95,7 +95,16 @@ bool fundec_dup(A_fundecList all, A_fundecList cur) {
   return false;
 }
 
-void sem_trans_fundecl_head(A_fundecList all, A_fundecList cur) {
+int fieldl_len(A_fieldList fl) {
+
+  int len = 0;
+
+  for (; fl; fl = fl->tail, len++);
+
+  return len;
+}
+
+void sem_trans_fundecl_head(trans_t* t, A_fundecList all, A_fundecList cur) {
 
   A_fundec f;
 
@@ -104,27 +113,36 @@ void sem_trans_fundecl_head(A_fundecList all, A_fundecList cur) {
 
   f = cur->head;
 
-  if (fundec_dup(all, cur))
-    EM_semantic_error(f->pos, "function '%s' is already defined", S_name(f->name));
-  else
-    sem_sym_fun_add(f->pos, g_symtab, f->name, f->result, f->params);
+  if (fundec_dup(all, cur)) {
 
-  sem_trans_fundecl_head(all, cur->tail);
+    EM_semantic_error(f->pos, "function '%s' is already defined", S_name(f->name));
+
+  } else {
+
+    sem_sym_fun_add(f->pos, g_symtab, f->name, f->result, f->params);
+    trans_declare_fun(t, f->name, fieldl_len(f->params));
+  }
+
+  sem_trans_fundecl_head(t, all, cur->tail);
 }
 
-void sem_trans_fundecl(trans_t* t, A_fundecList fl) {
+void sem_trans_fundecl_body(trans_t* t, A_fundecList fl) {
 
   if (!fl)
     return;
 
-  sem_trans_fundecl_head(fl, fl);
-
-  if (fl->head) 
+  if (fl->head)
     sem_trans_fundec(t, fl->head);
 
-  sem_trans_fundecl(t, fl->tail);
+  sem_trans_fundecl_body(t, fl->tail);
 
   free(fl);
+}
+
+void sem_trans_fundecl(trans_t* t, A_fundecList fl) {
+
+  sem_trans_fundecl_head(t, fl, fl);
+  sem_trans_fundecl_body(t, fl);
 }
 
 bool namety_dup(A_nametyList all, A_nametyList cur) {
@@ -214,7 +232,7 @@ void sem_trans_fundec(trans_t* t, A_fundec f) {
 
   trans_prologue(tmp, true);
   trans_epilogue(tmp, true);
-  trans_add_fun(t, tmp, f->name);
+  trans_define_fun(trans_fun_get(t, f->name), tmp);
 
   S_endScope(g_symtab);
   trans_free(&tmp);

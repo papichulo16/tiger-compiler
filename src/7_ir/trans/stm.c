@@ -135,7 +135,8 @@ T_stm stm_store_formals(trans_t* t) {
   for (fal_t* cur = f->formals; cur && cur->head; 
       cur = cur->tail) {
 
-    stm = T_Seq(stm, stm_var_write(t, T_Name(Temp_namedlabel(regs[cur->head->reg])), cur->head->sym));
+    // r0 holds the static link, params start at r1
+    stm = T_Seq(stm, stm_var_write(t, T_Name(Temp_namedlabel(regs[cur->head->reg + 1])), cur->head->sym));
   }
 
   return stm;
@@ -146,7 +147,7 @@ T_stm stm_var_access(trans_t* t, S_symbol s) {
   frame_t* frame = t->frame;
   frame_access_t* var;
   T_stm stm = NULL;
-  bool found = true;
+  T_exp frame_exp;
 
   if (!s)
     return NULL;
@@ -156,28 +157,19 @@ T_stm stm_var_access(trans_t* t, S_symbol s) {
   // the book says the first param should always be a "static link"
   // to the expected stack frame. that makes sense to the issue I 
   // came up with the other day
-  if (!var) {
 
-    // MAX_PARAMS+1 is old fp
-    // MAX_PARAMS+2 is fp of variable location
+  // find correct frame
+  frame_exp = T_Name(Temp_namedlabel("fp"));
 
-    found = false;
+  for (;!frame_local_get(frame, s); frame = frame->static_link) {
 
-    // find correct frame
-    stm = T_Seq(T_Move(T_Name(Temp_namedlabel(regs[MAX_PARAMS+1])), 
-            T_Name(Temp_namedlabel("fp"))), find_frame(t, s));
-
-    // store fp
-    stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel(regs[MAX_PARAMS+2])), T_Name(Temp_namedlabel("fp"))));
-
-    // restore fp
-    stm = T_Seq(stm, T_Move(T_Name(Temp_namedlabel("fp")), T_Name(Temp_namedlabel(regs[MAX_PARAMS+1]))));
+    if (!frame->shared)
+      frame_exp = T_Mem(frame_exp);
   }
 
-  var = frame_local_get(t->frame, s);
-  stm = T_Seq(stm, T_Exp(T_Mem(T_Op(T_minus, T_Name(Temp_namedlabel(found ? "fp" : regs[MAX_PARAMS+2])), T_Const(var->stack_off)))));
+  var = frame_local_get(frame, s);
+  stm = T_Seq(stm, T_Exp(T_Mem(T_Op(T_minus, frame_exp, T_Const(var->stack_off)))));
 
-  t->frame = frame;
   return stm;
 }
 

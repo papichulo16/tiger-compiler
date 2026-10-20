@@ -278,7 +278,8 @@ int trans_find_callee_static_link(trans_t* t, S_symbol call) {
       }
     }
 
-    if (!found)
+    // shared frames (for loops) live on their parent's fp, no deref
+    if (!found && !tmp->frame->shared)
       callee_frame = T_Mem(callee_frame);
   }
 

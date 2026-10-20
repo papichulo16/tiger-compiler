@@ -134,20 +134,26 @@ void trans_free(trans_t** t) {
   *t = NULL;
 }
 
-void trans_add_fun(trans_t* parent, trans_t* child, S_symbol name) {
+trans_fun_t* trans_declare_fun(trans_t* parent, S_symbol name, int param_count) {
 
   trans_fun_t* f;
 
-  TRANS_SEM_ERR_RET();
+  TRANS_SEM_ERR_RET(NULL);
 
   f = trans_fun(name);
-  f->param_count = child->frame->param_count;
-  f->ir = T_Seq(T_Label(f->label), child->ir);
+  f->param_count = param_count;
 
   parent->fun_list = tfl(f, parent->fun_list);
   all_funs = tfl(f, all_funs);
 
-  //printf("added fun '%s'\n", S_name(name));
+  return f;
+}
+
+void trans_define_fun(trans_fun_t* f, trans_t* child) {
+
+  TRANS_SEM_ERR_RET();
+
+  f->ir = T_Seq(T_Label(f->label), child->ir);
 }
 
 trans_fun_t* trans_fun_get(trans_t* t, S_symbol s) {
