@@ -24,8 +24,9 @@ static expRefList ExpRefList(T_exp *head, expRefList tail)
  return p;
 }
 
+/* trans builds the ir as T_Seq(NULL, ...) chains, so NULL stms are nops */
 static bool isNop(T_stm x) 
-{  return x->kind == T_EXP && x->u.EXP->kind == T_CONST;
+{  return !x || (x->kind == T_EXP && x->u.EXP->kind == T_CONST);
  }
 
 static T_stm seq(T_stm x, T_stm y)
@@ -38,7 +39,8 @@ static T_stm seq(T_stm x, T_stm y)
 static bool commute(T_stm x, T_exp y)
 {
  if (isNop(x)) return TRUE;
- if (y->kind == T_NAME || y->kind == T_CONST) return TRUE;
+ /* NAMEs double as registers (sp, fp, r0..), which stms can clobber */
+ if (y->kind == T_CONST) return TRUE;
  return FALSE;
 }
 
@@ -65,14 +67,28 @@ static T_stm reorder(expRefList rlist) {
     }
  }
 
+/* registers are either temps or NAMEs like sp, fp, r0 */
+static bool is_reg(T_exp exp)
+{
+ return exp->kind == T_TEMP || exp->kind == T_NAME;
+}
+
+/* args are MOVE(reg, exp) stms that must run right before the call, so only
+   their srcs get hoisted out, keeping nested calls from clobbering the regs */
 static expRefList get_call_rlist(T_exp exp)
-{expRefList rlist, curr;
- T_expList args = exp->u.CALL.args;
- curr = rlist = ExpRefList(&exp->u.CALL.fun, NULL);
- for (;args; args=args->tail) {
-   curr = curr->tail = ExpRefList(&args->head, NULL);
+{
+ struct expRefList_ head = {NULL, NULL};
+ expRefList last = &head;
+ T_stmList args;
+ /* a NAME fun is a code label, not a register, so it never needs hoisting */
+ if (exp->u.CALL.fun->kind != T_NAME)
+   last = last->tail = ExpRefList(&exp->u.CALL.fun, NULL);
+ for (args = exp->u.CALL.args; args; args = args->tail) {
+   T_stm s = args->head;
+   assert(s->kind == T_MOVE && is_reg(s->u.MOVE.dst));
+   last = last->tail = ExpRefList(&s->u.MOVE.src, NULL);
  }
- return rlist;
+ return head.tail;
 }
 
 static struct stmExp StmExp(T_stm stm, T_exp exp) {
@@ -85,9 +101,9 @@ static struct stmExp StmExp(T_stm stm, T_exp exp) {
 static struct stmExp do_exp(T_exp exp)
 {
   switch(exp->kind) {
-  case T_BINOP: 
-    return StmExp(reorder(ExpRefList(&exp->u.BINOP.left, 
-		       ExpRefList(&exp->u.BINOP.right, NULL))),
+  case T_OP: 
+    return StmExp(reorder(ExpRefList(&exp->u.OP.left, 
+		       ExpRefList(&exp->u.OP.right, NULL))),
 		  exp);
   case T_MEM: 
     return StmExp(reorder(ExpRefList(&exp->u.MEM, NULL)), exp);
@@ -105,18 +121,19 @@ static struct stmExp do_exp(T_exp exp)
 /* processes stm so that it contains no ESEQ nodes */
 static T_stm do_stm(T_stm stm)
 {
+  if (!stm)
+    return T_Exp(T_Const(0));
   switch (stm->kind) {
   case T_SEQ: 
     return seq(do_stm(stm->u.SEQ.left), do_stm(stm->u.SEQ.right));
   case T_JUMP:
     return seq(reorder(ExpRefList(&stm->u.JUMP.exp, NULL)), stm);
   case T_CJUMP:
-    return seq(reorder(ExpRefList(&stm->u.CJUMP.left, 
-				  ExpRefList(&stm->u.CJUMP.right,NULL))), stm);
+    return seq(reorder(ExpRefList(&stm->u.CJUMP.cond, NULL)), stm);
   case T_MOVE:
-    if (stm->u.MOVE.dst->kind == T_TEMP && stm->u.MOVE.src->kind == T_CALL)
+    if (is_reg(stm->u.MOVE.dst) && stm->u.MOVE.src->kind == T_CALL)
       return seq(reorder(get_call_rlist(stm->u.MOVE.src)), stm);
-    else if (stm->u.MOVE.dst->kind == T_TEMP)
+    else if (is_reg(stm->u.MOVE.dst))
       return seq(reorder(ExpRefList(&stm->u.MOVE.src, NULL)), stm);
     else if (stm->u.MOVE.dst->kind == T_MEM)
       return seq(reorder(ExpRefList(&stm->u.MOVE.dst->u.MEM, 
@@ -126,7 +143,7 @@ static T_stm do_stm(T_stm stm)
       stm->u.MOVE.dst = stm->u.MOVE.dst->u.ESEQ.exp;
       return do_stm(T_Seq(s, stm));
     }
-    assert(0); /* dst should be temp or mem only */
+    assert(0); /* dst should be temp, register name or mem only */
   case T_EXP:
     if (stm->u.EXP->kind == T_CALL)
          return seq(reorder(get_call_rlist(stm->u.EXP)), stm);
@@ -139,6 +156,8 @@ static T_stm do_stm(T_stm stm)
 /* linear gets rid of the top-level SEQ's, producing a list */
 static T_stmList linear(T_stm stm, T_stmList right)
 {
+ if (isNop(stm))
+   return right;
  if (stm->kind == T_SEQ) 
    return linear(stm->u.SEQ.left,linear(stm->u.SEQ.right,right));
  else return T_StmList(stm, right);
@@ -159,16 +178,35 @@ static C_stmListList StmListList(T_stmList head, C_stmListList tail)
  return p;
 }
  
+/* a NULL CJUMP label means fall through, so point it at a label on the
+   following stm, since every block after a CJUMP must start with one */
+static T_stmList fill_fall_through(T_stm s, T_stmList rest)
+{
+ Temp_label lab;
+ if (s->kind != T_CJUMP || (s->u.CJUMP.tr && s->u.CJUMP.fa))
+   return rest;
+ if (rest && rest->head->kind == T_LABEL)
+   lab = rest->head->u.LABEL;
+ else {
+   lab = Temp_newlabel();
+   rest = T_StmList(T_Label(lab), rest);
+ }
+ if (!s->u.CJUMP.tr) s->u.CJUMP.tr = lab;
+ if (!s->u.CJUMP.fa) s->u.CJUMP.fa = lab;
+ return rest;
+}
+
 /* Go down a list looking for end of basic block */
 static C_stmListList next(T_stmList prevstms, T_stmList stms, Temp_label done)
 {
-  if (!stms) 
-    return next(prevstms, 
-		T_StmList(T_Jump(T_Name(done), Temp_LabelList(done, NULL)), 
+  if (!stms)
+    return next(prevstms,
+		T_StmList(T_Jump(T_Name(done), Temp_LabelList(done, NULL)),
 			  NULL), done);
   if (stms->head->kind == T_JUMP || stms->head->kind == T_CJUMP) {
     C_stmListList stmLists;
-    prevstms->tail = stms; 
+    prevstms->tail = stms;
+    stms->tail = fill_fall_through(stms->head, stms->tail);
     stmLists = mkBlocks(stms->tail, done);
     stms->tail = NULL;
     return stmLists;
@@ -227,6 +265,14 @@ static T_stmList getLast(T_stmList list)
   return last;
 }
 
+/* conds are arbitrary exps, so only relational ops can be flipped in place */
+static T_exp not_cond(T_exp cond)
+{
+ if (cond->kind == T_OP && cond->u.OP.op >= T_eq)
+   return T_Op(T_notRel(cond->u.OP.op), cond->u.OP.left, cond->u.OP.right);
+ return T_Op(T_eq, cond, T_Const(0));
+}
+
 static void trace(T_stmList list)
 {
   T_stmList last = getLast(list);
@@ -243,24 +289,22 @@ static void trace(T_stmList list)
   }
   /* we want false label to follow CJUMP */
   else if (s->kind == T_CJUMP) {
-    T_stmList true =  (T_stmList) S_look(block_env, s->u.CJUMP.true);
-    T_stmList false =  (T_stmList) S_look(block_env, s->u.CJUMP.false);
-    if (false) {
-      last->tail->tail = false;
-      trace(false);
+    T_stmList tr_list = (T_stmList) S_look(block_env, s->u.CJUMP.tr);
+    T_stmList fa_list = (T_stmList) S_look(block_env, s->u.CJUMP.fa);
+    if (fa_list) {
+      last->tail->tail = fa_list;
+      trace(fa_list);
     }
-    else if (true) { /* convert so that existing label is a false label */
-      last->tail->head = T_Cjump(T_notRel(s->u.CJUMP.op), s->u.CJUMP.left,
-				 s->u.CJUMP.right, s->u.CJUMP.false, 
-				 s->u.CJUMP.true);
-      last->tail->tail = true;
-      trace(true);
+    else if (tr_list) { /* convert so that existing label is a false label */
+      last->tail->head = T_Cjump(not_cond(s->u.CJUMP.cond),
+				 s->u.CJUMP.fa, s->u.CJUMP.tr);
+      last->tail->tail = tr_list;
+      trace(tr_list);
     }
     else {
-      Temp_label false = Temp_newlabel();
-      last->tail->head = T_Cjump(s->u.CJUMP.op, s->u.CJUMP.left,
-				 s->u.CJUMP.right, s->u.CJUMP.true, false);
-      last->tail->tail = T_StmList(T_Label(false), getNext());
+      Temp_label fa = Temp_newlabel();
+      last->tail->head = T_Cjump(s->u.CJUMP.cond, s->u.CJUMP.tr, fa);
+      last->tail->tail = T_StmList(T_Label(fa), getNext());
     }
   }
   else assert(0);

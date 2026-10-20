@@ -1,0 +1,11 @@
+let
+  var x := 10
+
+  function f(a:int) : int = x + a
+
+in
+  
+  f(1)
+
+end
+
