@@ -18,15 +18,19 @@ static struct stmExp do_exp(T_exp exp);
 static C_stmListList mkBlocks(T_stmList stms, Temp_label done);
 static T_stmList getNext(void);
 
-static expRefList ExpRefList(T_exp *head, expRefList tail)
-{expRefList p = (expRefList) checked_malloc (sizeof *p);
- p->head=head; p->tail=tail;
- return p;
+static expRefList ExpRefList(T_exp *head, expRefList tail) {
+
+  expRefList p = (expRefList) checked_malloc (sizeof *p);
+
+  p->head=head;
+  p->tail=tail;
+
+  return p;
 }
 
 /* trans builds the ir as T_Seq(NULL, ...) chains, so NULL stms are nops */
 static bool isNop(T_stm x) 
-{  return !x || (x->kind == T_EXP && x->u.EXP->kind == T_CONST);
+{  return !x; //|| (x->kind == T_EXP && x->u.EXP->kind == T_CONST);
  }
 
 static T_stm seq(T_stm x, T_stm y)
@@ -47,7 +51,9 @@ static bool commute(T_stm x, T_exp y)
 struct stmExp {T_stm s; T_exp e;};
 
 static T_stm reorder(expRefList rlist) {
-   if (!rlist) return T_Exp(T_Const(0)); /* nop */
+   if (!rlist) 
+     return NULL; /* nop */
+     //return T_Exp(T_Const(0)); /* nop */
    else if ((*rlist->head)->kind==T_CALL) {
       Temp_temp t = Temp_newtemp();
       *rlist->head = T_Eseq(T_Move(T_Temp(t),*rlist->head),T_Temp(t));
@@ -122,7 +128,8 @@ static struct stmExp do_exp(T_exp exp)
 static T_stm do_stm(T_stm stm)
 {
   if (!stm)
-    return T_Exp(T_Const(0));
+    return NULL;
+    //return T_Exp(T_Const(0));
   switch (stm->kind) {
   case T_SEQ: 
     return seq(do_stm(stm->u.SEQ.left), do_stm(stm->u.SEQ.right));
@@ -145,8 +152,9 @@ static T_stm do_stm(T_stm stm)
     }
     assert(0); /* dst should be temp, register name or mem only */
   case T_EXP:
-    if (stm->u.EXP->kind == T_CALL)
+    if (stm->u.EXP->kind == T_CALL) {
          return seq(reorder(get_call_rlist(stm->u.EXP)), stm);
+    } 
     else return seq(reorder(ExpRefList(&stm->u.EXP, NULL)), stm);
  default:
     return stm;
@@ -159,7 +167,11 @@ static T_stmList linear(T_stm stm, T_stmList right)
  if (isNop(stm))
    return right;
  if (stm->kind == T_SEQ) 
-   return linear(stm->u.SEQ.left,linear(stm->u.SEQ.right,right));
+    if (stm->u.SEQ.left)
+     return linear(stm->u.SEQ.left,linear(stm->u.SEQ.right,right));
+
+    else return linear(stm->u.SEQ.right, right);
+
  else return T_StmList(stm, right);
 }
 
@@ -270,7 +282,8 @@ static T_exp not_cond(T_exp cond)
 {
  if (cond->kind == T_OP && cond->u.OP.op >= T_eq)
    return T_Op(T_notRel(cond->u.OP.op), cond->u.OP.left, cond->u.OP.right);
- return T_Op(T_eq, cond, T_Const(0));
+ return T_Op(T_eq, cond, NULL);
+ //return T_Op(T_eq, cond, T_Const(0));
 }
 
 static void trace(T_stmList list)

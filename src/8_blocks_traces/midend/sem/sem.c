@@ -13,6 +13,7 @@
 #include "sem_exp.h"
 #include "trans.h"
 #include "canon.h"
+#include "printtree.h"
 
 S_table g_symtab = NULL;
 
@@ -36,9 +37,9 @@ void sem_trans_prog(A_exp e) {
 
   sem_trans_exp(t, e);
 
-  trans_append_all_funs(t);
-  print_trans(t);
-  C_linearize(t->ir);
+  //trans_append_all_funs(t);
+  //print_trans(t);
+  printStmList(stdout, C_traceSchedule(C_basicBlocks(C_linearize(t->ir))));
 
   if (g_symtab)
     free_global((void **) &g_symtab);
