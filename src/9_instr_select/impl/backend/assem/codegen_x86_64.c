@@ -66,6 +66,7 @@ out:
   return r;
 }
 
+// improve later to have address offsetting in derefs
 static void munch_stm_move(T_stm s) {
 
   T_exp dst = s->u.MOVE.dst;
@@ -77,6 +78,16 @@ static void munch_stm_move(T_stm s) {
 
     return;
   }
+
+  if (src && src->kind == T_MEM) {
+
+    emit(AS_Move("mov `d0,  qword [`s0]", L(munch_exp(dst), NULL), L(munch_exp(src), NULL)));
+
+    return;
+  }
+
+  emit(AS_Move("mov `d0, `s0", L(munch_exp(dst), NULL), L(munch_exp(src), NULL)));
+
 }
 
 static bool is_sp(T_exp e) {
@@ -179,6 +190,8 @@ AS_instrList codegen(T_stmList stml) {
     else
       munch_stm(stml->head);
   }
+
+  emit(AS_Oper("ret", NULL, NULL, NULL));
 
   g_instr_list = reverse_instr_list(g_instr_list, NULL);
 
