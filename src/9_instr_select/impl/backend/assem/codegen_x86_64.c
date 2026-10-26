@@ -9,6 +9,10 @@
 #include "assem.h"
 #include "codegen.h"
 
+// 0x7fffffffffffffff = 9223372036854775807
+// that is 19 digits, 18 for safe measures
+#define CONST_SZ_MAX_BYTES 18
+
 extern int WORD_SZ;
 
 /* 
@@ -43,6 +47,7 @@ static Temp_temp munch_exp_name(T_exp e) {}
 static Temp_temp munch_exp(T_exp e) {
 
   Temp_temp r = Temp_newtemp(); 
+  char* tmp;
 
   if (!e)
     goto out;
@@ -66,6 +71,10 @@ static Temp_temp munch_exp(T_exp e) {
       break;
 
     case T_CONST:
+
+      tmp = malloc(CONST_SZ_MAX_BYTES*2);
+      snprintf(tmp, CONST_SZ_MAX_BYTES*2, "mov `d0, %d", e->u.CONST);
+      emit(AS_Move(tmp, L(r, NULL), NULL));
       break;
 
     case T_CALL:
@@ -76,7 +85,7 @@ out:
   return r;
 }
 
-static struct { string ir; string x86; } g_reg_map[] = {
+static struct { char* ir; char* x86; } g_reg_map[] = {
   { "fp", "rbp" },
   { "sp", "rsp" },
   { "r0", "rdi" },
@@ -87,9 +96,9 @@ static struct { string ir; string x86; } g_reg_map[] = {
   { "r5", "r9" },
 };
 
-static string reg_lookup(T_exp e) {
+static char* reg_lookup(T_exp e) {
 
-  string reg = NULL;
+  char* reg = NULL;
   int i;
 
   if (!e || e->kind != T_NAME)
@@ -108,9 +117,15 @@ out:
   return reg;
 }
 
-static string munch_operand(T_exp e, string placeholder, Temp_tempList *list) {
+static char* munch_operand(T_exp e, char* placeholder, Temp_tempList *list) {
 
-  string reg = reg_lookup(e);
+  char* reg = reg_lookup(e);
+
+  if (!reg && e->kind == T_CONST) {
+
+    reg = malloc(CONST_SZ_MAX_BYTES);
+    snprintf(reg, CONST_SZ_MAX_BYTES, "%d", e->u.CONST);
+  }
 
   if (!reg) {
 
@@ -133,6 +148,20 @@ static void munch_mov_oper_types(T_exp* dst, T_exp* src, char** fstr) {
 
     *fstr = "mov %s, qword [%s]";
     *src = (*src)->u.MEM;
+  }
+
+  // math with a dst same as oper
+  // MOVE(NAME X, OP(OP, NAME X, exp))
+  else if (*src && *dst && (*dst)->kind == T_NAME && (*src)->kind == T_OP && 
+      (*src)->u.OP.left->kind == T_NAME && (*src)->u.OP.left->u.NAME == (*dst)->u.NAME) {
+
+    if ((*src)->u.OP.op == T_plus)
+      *fstr = "add %s, %s";
+    else if ((*src)->u.OP.op == T_minus)
+      *fstr = "sub %s, %s";
+    // handle mul and div later
+
+    *src = (*src)->u.OP.right;
   }
 }
 
@@ -178,8 +207,8 @@ static bool munch_push_pop(T_stmList stml) {
   T_exp head_dst;
   T_exp tail_src;
   T_exp tail_dst;
-  string reg;
-  string instr;
+  char* reg;
+  char* instr;
   Temp_tempList list = NULL;
 
   if (!stml->tail || !stml->tail->head)
@@ -232,15 +261,25 @@ static bool munch_push_pop(T_stmList stml) {
 
 static void munch_stm(T_stm s) {
 
+  char* tmp;
+  size_t tmp_sz;
+
   if (!s)
     return;
 
   switch (s->kind) {
 
     case T_SEQ:
+      printf("does this ever hit?\n");
       break;
 
     case T_LABEL:
+
+      tmp_sz = strlen(Temp_labelstring(s->u.LABEL)) + 2;
+      tmp = malloc(tmp_sz);
+
+      snprintf(tmp, tmp_sz, "%s:", Temp_labelstring(s->u.LABEL));
+      emit(AS_Label(tmp, s->u.LABEL));
       break;
 
     case T_JUMP:
@@ -254,6 +293,9 @@ static void munch_stm(T_stm s) {
       break;
 
     case T_EXP:
+
+      // assuming and exp stm is a retval
+      emit(AS_Move("mov rax, `s0", NULL, L(munch_exp(s->u.EXP), NULL)));
       break;
   }
 }
