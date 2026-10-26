@@ -14,6 +14,8 @@
 #define CONST_SZ_MAX_BYTES 18
 
 extern int WORD_SZ;
+static Temp_temp munch_exp(T_exp e);
+static void munch_stm(T_stm s);
 
 /* 
  * the book says to have a backtick (`) for temporary registers
@@ -40,49 +42,6 @@ static AS_instrList reverse_instr_list(AS_instrList asl, AS_instrList new) {
   free(asl);
 
   return reversed;
-}
-
-static Temp_temp munch_exp_name(T_exp e) {}
-
-static Temp_temp munch_exp(T_exp e) {
-
-  Temp_temp r = Temp_newtemp(); 
-  char* tmp;
-
-  if (!e)
-    goto out;
-
-  switch (e->kind) {
-
-    case T_OP:
-      break;
-
-    case T_MEM:
-      break;
-
-    case T_TEMP:
-      return e->u.TEMP;
-
-    case T_ESEQ:
-      break;
-
-    case T_NAME:
-      munch_exp_name(e);
-      break;
-
-    case T_CONST:
-
-      tmp = malloc(CONST_SZ_MAX_BYTES*2);
-      snprintf(tmp, CONST_SZ_MAX_BYTES*2, "mov `d0, %d", e->u.CONST);
-      emit(AS_Move(tmp, L(r, NULL), NULL));
-      break;
-
-    case T_CALL:
-      break;
-  }
-
-out:
-  return r;
 }
 
 static struct { char* ir; char* x86; } g_reg_map[] = {
@@ -136,6 +95,147 @@ static char* munch_operand(T_exp e, char* placeholder, Temp_tempList *list) {
   return reg;
 }
 
+static Temp_temp munch_exp_name(T_exp e) {
+
+  Temp_temp r = Temp_newtemp();
+  Temp_tempList l = NULL;
+  char* reg = munch_operand(e, "`s0", &l);
+  char* buf = malloc(CONST_SZ_MAX_BYTES*2);
+
+  snprintf(buf, CONST_SZ_MAX_BYTES*2, "mov `d0, %s", reg);
+  emit(AS_Move(buf, L(r, NULL), l));
+
+  return r;
+}
+
+static Temp_temp munch_exp_op(T_exp e) {
+
+  Temp_temp r = Temp_newtemp();
+  T_exp left = e->u.OP.left;
+  T_exp right = e->u.OP.right;
+  T_op op = e->u.OP.op;
+
+  emit(AS_Move("mov `d0, `s0", L(r, NULL), L(munch_exp(left), NULL)));
+
+  switch (op) {
+
+    case T_plus:
+      emit(AS_Move("add `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      break;
+
+    case T_minus:
+      emit(AS_Move("sub `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      break;
+
+    case T_mul:
+    case T_div:
+      printf("mul or div not implemented\n");
+      break;
+
+    case T_and:
+    case T_or:
+      printf("and or or not implemented\n");
+      break;
+
+    case T_lshift:
+    case T_rshift:
+    case T_xor:
+      printf("bit math not implemented\n");
+      break;
+
+    case T_eq:
+    case T_ne:
+    case T_lt:
+    case T_gt:
+    case T_le:
+    case T_ge:
+      printf("comparisons not implemented\n");
+      break;
+  }
+
+  return r;
+}
+
+static void munch_call_params(T_stmList args) {
+
+  if (!args)
+    return;
+
+  munch_call_params(args->tail);
+  munch_stm(args->head);
+}
+
+static Temp_temp munch_exp_call(T_exp e) {
+
+  T_exp fun = e->u.CALL.fun;
+  T_stmList args = e->u.CALL.args;
+  Temp_temp r = Temp_newtemp(); 
+  char* buf;
+  size_t buf_sz;
+
+  // fun should never not be a name label hopefully
+  if (fun->kind != T_NAME) {
+
+    printf("fun not a name??? why??\n");
+    exit(-1);
+  }
+
+  buf_sz = strlen(Temp_labelstring(fun->u.NAME)) + 8;
+  buf = malloc(buf_sz);
+  snprintf(buf, buf_sz, "call %s", Temp_labelstring(fun->u.NAME));
+
+  printf("%s\n", buf);
+
+  munch_call_params(args);
+  emit(AS_Oper(buf, NULL, NULL, NULL));
+  emit(AS_Move("mov `d0, rax", L(r, NULL), NULL));
+
+  return r;
+}
+
+static Temp_temp munch_exp(T_exp e) {
+
+  Temp_temp r = Temp_newtemp(); 
+  char* tmp;
+
+  if (!e)
+    goto out;
+
+  switch (e->kind) {
+
+    case T_OP:
+      r = munch_exp_op(e);
+      break;
+
+    case T_MEM:
+      break;
+
+    case T_TEMP:
+      return e->u.TEMP;
+
+    case T_ESEQ:
+      break;
+
+    case T_NAME:
+      r = munch_exp_name(e);
+      break;
+
+    case T_CONST:
+
+      tmp = malloc(CONST_SZ_MAX_BYTES*2);
+      snprintf(tmp, CONST_SZ_MAX_BYTES*2, "mov `d0, %d", e->u.CONST);
+      emit(AS_Move(tmp, L(r, NULL), NULL));
+      break;
+
+    case T_CALL:
+      r = munch_exp_call(e);
+      break;
+  }
+
+out:
+  return r;
+}
+
 // improve later to have address offsetting in derefs
 static void munch_mov_oper_types(T_exp* dst, T_exp* src, char** fstr) {
 
@@ -187,10 +287,50 @@ static void munch_stm_move(T_stm s) {
   emit(AS_Move(instr, dst_list, src_list));
 }
 
+static void munch_stm(T_stm s) {
+
+  char* tmp;
+  size_t tmp_sz;
+
+  if (!s)
+    return;
+
+  switch (s->kind) {
+
+    case T_SEQ:
+      printf("does this ever hit?\n");
+      break;
+
+    case T_LABEL:
+
+      tmp_sz = strlen(Temp_labelstring(s->u.LABEL)) + 2;
+      tmp = malloc(tmp_sz);
+
+      snprintf(tmp, tmp_sz, "%s:", Temp_labelstring(s->u.LABEL));
+      emit(AS_Label(tmp, s->u.LABEL));
+      break;
+
+    case T_JUMP:
+      break;
+
+    case T_CJUMP:
+      break;
+
+    case T_MOVE:
+      munch_stm_move(s);
+      break;
+
+    case T_EXP:
+
+      // assuming and exp stm is a retval
+      emit(AS_Move("mov rax, `s0", NULL, L(munch_exp(s->u.EXP), NULL)));
+      break;
+  }
+}
+
 static bool is_sp(T_exp e) {
 
-  return e && e->kind == T_NAME && e->u.NAME == Temp_namedlabel("sp");
-}
+  return e && e->kind == T_NAME && e->u.NAME == Temp_namedlabel("sp"); }
 
 // OP(op, NAME sp, CONST WORD_SZ)
 static bool is_sp_offset(T_exp e, T_op op) {
@@ -257,47 +397,6 @@ static bool munch_push_pop(T_stmList stml) {
   }
   
   return false;
-}
-
-static void munch_stm(T_stm s) {
-
-  char* tmp;
-  size_t tmp_sz;
-
-  if (!s)
-    return;
-
-  switch (s->kind) {
-
-    case T_SEQ:
-      printf("does this ever hit?\n");
-      break;
-
-    case T_LABEL:
-
-      tmp_sz = strlen(Temp_labelstring(s->u.LABEL)) + 2;
-      tmp = malloc(tmp_sz);
-
-      snprintf(tmp, tmp_sz, "%s:", Temp_labelstring(s->u.LABEL));
-      emit(AS_Label(tmp, s->u.LABEL));
-      break;
-
-    case T_JUMP:
-      break;
-
-    case T_CJUMP:
-      break;
-
-    case T_MOVE:
-      munch_stm_move(s);
-      break;
-
-    case T_EXP:
-
-      // assuming and exp stm is a retval
-      emit(AS_Move("mov rax, `s0", NULL, L(munch_exp(s->u.EXP), NULL)));
-      break;
-  }
 }
 
 AS_instrList codegen(T_stmList stml) {
