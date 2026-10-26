@@ -10,6 +10,8 @@
 #include "printtree.h"
 #include "trans.h"
 #include "sem.h"
+#include "assem.h"
+#include "codegen.h"
 
 static void comp_err(void) {
 
@@ -17,12 +19,31 @@ static void comp_err(void) {
   exit(-1);
 }
 
+static void main_print_instrs(FILE* out, AS_instrList instrs) {
+
+  for (; instrs; instrs = instrs->tail) {
+
+    if (instrs->head->kind != I_LABEL)
+      fprintf(out, "    ");
+
+    AS_print(out, instrs->head, Temp_name());
+    fprintf(out, "\n");
+  }
+}
+
 static void main_do_proc(FILE* out, Temp_label label, T_stm body) {
 
   T_stmList stms = C_traceSchedule(C_basicBlocks(C_linearize(body)));
+  AS_instrList instr_list = codegen(stms);
 
   fprintf(out, "BEGIN %s\n", Temp_labelstring(label));
+
+  fprintf(out, "IR\n");
   printStmList(out, stms);
+
+  fprintf(out, "\nASM\n");
+  main_print_instrs(out, instr_list);
+
   fprintf(out, "END %s\n\n", Temp_labelstring(label));
 }
 

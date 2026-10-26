@@ -10,8 +10,6 @@
 #include "tree.h"
 #include "trans.h"
 
-#ifdef X86_FRAME
-
 int WORD_SZ = 8;
 
 fal_t* fal(frame_access_t* head, fal_t* tail) {
@@ -151,6 +149,4 @@ frame_access_t* frame_local_get(frame_t* f, S_symbol s) {
   return (fa && fa->head) ? fa->head : 
     (f->shared ? frame_local_get(f->static_link, s) : NULL);
 }
-
-#endif
 
