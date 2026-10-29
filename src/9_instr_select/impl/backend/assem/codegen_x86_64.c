@@ -25,6 +25,16 @@ static void munch_stm(T_stm s);
 AS_instrList g_instr_list = NULL;
 
 static Temp_tempList L(Temp_temp h, Temp_tempList t) { return Temp_TempList(h, t); }
+static Temp_labelList LL(Temp_label h, Temp_labelList t) { return Temp_LabelList(h, t); }
+
+char* strcat_malloc(char* dst, char* src) {
+  char* t = malloc(strlen(dst) + strlen(src) + 1);
+
+  strcpy(t, dst);
+  strcat(t, src);
+
+  return t;
+}
 
 static void emit(AS_instr instr) {
 
@@ -108,14 +118,17 @@ static Temp_temp munch_exp_name(T_exp e) {
   return r;
 }
 
+Temp_label g_true_block = NULL;
+
 static Temp_temp munch_exp_op(T_exp e) {
 
-  Temp_temp r = Temp_newtemp();
+  Temp_temp r;
   T_exp left = e->u.OP.left;
   T_exp right = e->u.OP.right;
   T_op op = e->u.OP.op;
 
-  emit(AS_Move("mov `d0, `s0", L(r, NULL), L(munch_exp(left), NULL)));
+  //emit(AS_Move("mov `d0, `s0", L(r, NULL), L(munch_exp(left), NULL)));
+  r = munch_exp(left);
 
   switch (op) {
 
@@ -144,12 +157,39 @@ static Temp_temp munch_exp_op(T_exp e) {
       break;
 
     case T_eq:
+
+      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
+      emit(AS_Oper(strcat_malloc("je ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
     case T_ne:
+
+      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
+      emit(AS_Oper(strcat_malloc("jne ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
     case T_lt:
+
+      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
+      emit(AS_Oper(strcat_malloc("jl ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
     case T_gt:
+
+      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
+      emit(AS_Oper(strcat_malloc("jg ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
     case T_le:
+
+      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
+      emit(AS_Oper(strcat_malloc("jle ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
     case T_ge:
-      printf("comparisons not implemented\n");
+
+      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
+      emit(AS_Oper(strcat_malloc("jge ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
       break;
   }
 
@@ -176,15 +216,13 @@ static Temp_temp munch_exp_call(T_exp e) {
   // fun should never not be a name label hopefully
   if (fun->kind != T_NAME) {
 
-    printf("fun not a name??? why??\n");
+    fprintf(stderr, "fun not a name??? why??\n");
     exit(-1);
   }
 
   buf_sz = strlen(Temp_labelstring(fun->u.NAME)) + 8;
   buf = malloc(buf_sz);
   snprintf(buf, buf_sz, "call %s", Temp_labelstring(fun->u.NAME));
-
-  printf("%s\n", buf);
 
   munch_call_params(args);
   emit(AS_Oper(buf, NULL, NULL, NULL));
@@ -208,12 +246,15 @@ static Temp_temp munch_exp(T_exp e) {
       break;
 
     case T_MEM:
+
+      emit(AS_Move("mov `d0, qword [`s0]", L(r, NULL), L(munch_exp(e->u.MEM), NULL)));
       break;
 
     case T_TEMP:
       return e->u.TEMP;
 
     case T_ESEQ:
+      printf("does this also exist?\n");
       break;
 
     case T_NAME:
@@ -287,6 +328,16 @@ static void munch_stm_move(T_stm s) {
   emit(AS_Move(instr, dst_list, src_list));
 }
 
+static void munch_stm_cjump(T_stm s) {
+
+  T_exp cond = s->u.CJUMP.cond;
+  Temp_label tr = s->u.CJUMP.tr;
+  Temp_label fa = s->u.CJUMP.fa;
+
+  g_true_block = tr;
+  munch_exp(cond);
+}
+
 static void munch_stm(T_stm s) {
 
   char* tmp;
@@ -311,9 +362,17 @@ static void munch_stm(T_stm s) {
       break;
 
     case T_JUMP:
+
+      tmp_sz = strlen(Temp_labelstring(s->u.JUMP.exp->u.NAME)) + 8;
+      tmp = malloc(tmp_sz);
+
+      snprintf(tmp, tmp_sz, "jmp %s", Temp_labelstring(s->u.JUMP.exp->u.NAME));
+      emit(AS_Oper(tmp, NULL, NULL, AS_Targets(s->u.JUMP.jumps)));
+
       break;
 
     case T_CJUMP:
+      munch_stm_cjump(s);
       break;
 
     case T_MOVE:

@@ -5,7 +5,10 @@ let
 
 in
 
-  x := f(2) + 3
+  if x > 10 then
+    f(x)
+  else
+    f(x-3)
 
 end
 
