@@ -86,6 +86,8 @@ out:
   return reg;
 }
 
+bool g_name_exp = false;
+
 static char* munch_operand(T_exp e, char* placeholder, Temp_tempList *list) {
 
   char* reg = reg_lookup(e);
@@ -96,7 +98,9 @@ static char* munch_operand(T_exp e, char* placeholder, Temp_tempList *list) {
     snprintf(reg, CONST_SZ_MAX_BYTES, "%d", e->u.CONST);
   }
 
-  if (!reg) {
+  // need to be careful if it calls already from the exp name
+  // the munch_exp(e) will cause infinite recursion
+  if (!reg && !g_name_exp) {
 
     reg = placeholder;
     *list = L(munch_exp(e), NULL);
@@ -107,12 +111,21 @@ static char* munch_operand(T_exp e, char* placeholder, Temp_tempList *list) {
 
 static Temp_temp munch_exp_name(T_exp e) {
 
+
   Temp_temp r = Temp_newtemp();
   Temp_tempList l = NULL;
-  char* reg = munch_operand(e, "`s0", &l);
+  char* reg;
   char* buf = malloc(CONST_SZ_MAX_BYTES*2);
 
-  snprintf(buf, CONST_SZ_MAX_BYTES*2, "mov `d0, %s", reg);
+  g_name_exp = true;
+  reg = munch_operand(e, "`s0", &l);
+  g_name_exp = false;
+
+  if (reg)
+    snprintf(buf, CONST_SZ_MAX_BYTES*2, "mov `d0, %s", reg);
+  else
+    snprintf(buf, CONST_SZ_MAX_BYTES*2, "mov `d0, %s", Temp_labelstring(e->u.NAME));
+
   emit(AS_Move(buf, L(r, NULL), l));
 
   return r;

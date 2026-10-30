@@ -1,5 +1,6 @@
 let
   var x := 10
+  var y := "hello"
 
   function f(a:int) : int = 1
 

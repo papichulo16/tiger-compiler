@@ -37,7 +37,7 @@ typedef struct trans_str_t trans_str_t;
 
 struct trans_str_t {
   Temp_label label;
-  string str;
+  char* str;
   trans_str_t* next;
 };
 
@@ -51,7 +51,7 @@ struct trans_frag_t {
   union {
 
     struct { Temp_label label; T_stm body; frame_t* frame; } proc;
-    struct { Temp_label label; string str; } str;
+    struct { Temp_label label; char* str; } str;
 
   } u;
 };
@@ -68,7 +68,7 @@ trans_t* trans_new_link_shared_frame(trans_t* parent);
 void trans_free(trans_t** t);
 
 void trans_append_all_funs(trans_t* t);
-Temp_label trans_str_label(string s);
+Temp_label trans_str_label(char* s);
 void trans_strs_free(void);
 trans_str_t* trans_strs_take(void);
 tfl_t* trans_funs_take(void);
@@ -114,7 +114,7 @@ void trans_funcall_param(trans_t* t, int reg, T_stm s);
 void trans_funcall(trans_t* t, S_symbol fun);
 int trans_is_stdlib_fun(S_symbol s);
 void trans_int_exp(trans_t* t, int n);
-void trans_string_exp(trans_t* t, string s);
+void trans_string_exp(trans_t* t, char* s);
 
 void trans_alloc(trans_t* t, size_t size);
 void trans_alloc_exp(trans_t* t, T_exp e);
