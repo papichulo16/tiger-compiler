@@ -120,6 +120,17 @@ static Temp_temp munch_exp_name(T_exp e) {
 
 Temp_label g_true_block = NULL;
 
+// idiv only divides rdx:rax
+static void munch_exp_div(Temp_temp r, Temp_temp divisor) {
+
+  emit(AS_Oper("push rdx", NULL, NULL, NULL));
+  emit(AS_Move("mov rax, `s0", NULL, L(r, NULL)));
+  emit(AS_Oper("cqo", NULL, NULL, NULL));
+  emit(AS_Oper("idiv `s0", NULL, L(divisor, NULL), NULL));
+  emit(AS_Oper("pop rdx", NULL, NULL, NULL));
+  emit(AS_Move("mov `d0, rax", L(r, NULL), NULL));
+}
+
 static Temp_temp munch_exp_op(T_exp e) {
 
   Temp_temp r;
@@ -141,8 +152,11 @@ static Temp_temp munch_exp_op(T_exp e) {
       break;
 
     case T_mul:
+      emit(AS_Move("imul `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      break;
+
     case T_div:
-      printf("mul or div not implemented\n");
+      munch_exp_div(r, munch_exp(right));
       break;
 
     case T_and:
@@ -293,16 +307,32 @@ static void munch_mov_oper_types(T_exp* dst, T_exp* src, char** fstr) {
 
   // math with a dst same as oper
   // MOVE(NAME X, OP(OP, NAME X, exp))
-  else if (*src && *dst && (*dst)->kind == T_NAME && (*src)->kind == T_OP && 
+  else if (*src && *dst && (*dst)->kind == T_NAME && (*src)->kind == T_OP &&
       (*src)->u.OP.left->kind == T_NAME && (*src)->u.OP.left->u.NAME == (*dst)->u.NAME) {
 
-    if ((*src)->u.OP.op == T_plus)
-      *fstr = "add %s, %s";
-    else if ((*src)->u.OP.op == T_minus)
-      *fstr = "sub %s, %s";
-    // handle mul and div later
+    switch ((*src)->u.OP.op) {
 
-    *src = (*src)->u.OP.right;
+      case T_plus:
+
+        *fstr = "add %s, %s";
+        *src = (*src)->u.OP.right;
+        break;
+
+      case T_minus:
+
+        *fstr = "sub %s, %s";
+        *src = (*src)->u.OP.right;
+        break;
+
+      case T_mul:
+
+        *fstr = "imul %s, %s";
+        *src = (*src)->u.OP.right;
+        break;
+
+      default:
+        break;
+    }
   }
 }
 
