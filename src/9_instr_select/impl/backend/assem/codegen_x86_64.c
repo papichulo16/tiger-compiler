@@ -132,6 +132,8 @@ static Temp_temp munch_exp_name(T_exp e) {
 }
 
 Temp_label g_true_block = NULL;
+Temp_label g_false_block = NULL;
+bool g_clr_block = true;
 
 // idiv only divides rdx:rax
 static void munch_exp_div(Temp_temp r, Temp_temp divisor) {
@@ -144,12 +146,127 @@ static void munch_exp_div(Temp_temp r, Temp_temp divisor) {
   emit(AS_Move("mov `d0, rax", L(r, NULL), NULL));
 }
 
+static void flip_op(T_exp e)  {
+
+  T_op op;
+
+  if (e->kind != T_OP)
+    return;
+
+  op = e->u.OP.op;
+
+  if (op == T_eq)
+    e->u.OP.op = T_ne;
+  else if (op == T_ne)
+    e->u.OP.op = T_eq;
+  else if (op == T_lt)
+    e->u.OP.op = T_ge;
+  else if (op == T_ge)
+    e->u.OP.op = T_lt;
+  else if (op == T_gt)
+    e->u.OP.op = T_le;
+  else if (op == T_le)
+    e->u.OP.op = T_gt;
+  else if (op == T_ult)
+    e->u.OP.op = T_uge;
+  else if (op == T_uge)
+    e->u.OP.op = T_ult;
+  else if (op == T_ugt)
+    e->u.OP.op = T_ule;
+  else if (op == T_ule)
+    e->u.OP.op = T_ugt;
+}
+
+static Temp_temp munch_exp_op_bool(T_exp e) {
+
+  Temp_temp r;
+  T_exp left = e->u.OP.left;
+  T_exp right = e->u.OP.right;
+  T_op op = e->u.OP.op;
+  bool clr;
+
+  if (!g_true_block || !g_false_block) {
+
+    fprintf(stderr, "conditional jump error\n");
+    exit(-1);
+  }
+
+  if (op == T_and) {
+
+    flip_op(left);
+    flip_op(right);
+  }
+
+  if (op == T_and || op == T_or) {
+
+    clr = g_clr_block;
+    g_clr_block = false;
+
+    munch_exp(left);
+    munch_exp(right);
+
+    g_clr_block = clr;
+
+    goto end;
+  }
+
+  r = munch_exp(left);
+  emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
+
+  switch(op) {
+    case T_eq:
+      emit(AS_Oper(strcat_malloc("je ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
+    case T_ne:
+      emit(AS_Oper(strcat_malloc("jne ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
+    case T_lt:
+      emit(AS_Oper(strcat_malloc("jl ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
+    case T_gt:
+      emit(AS_Oper(strcat_malloc("jg ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
+    case T_le:
+      emit(AS_Oper(strcat_malloc("jle ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+
+    case T_ge:
+      emit(AS_Oper(strcat_malloc("jge ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      break;
+  }
+
+end:
+  if (g_clr_block) {
+
+    g_true_block = NULL;
+    g_false_block = NULL;
+  }
+
+  return r;
+}
+
 static Temp_temp munch_exp_op(T_exp e) {
 
   Temp_temp r;
   T_exp left = e->u.OP.left;
   T_exp right = e->u.OP.right;
   T_op op = e->u.OP.op;
+
+  switch (op) {
+    case T_and:
+    case T_or:
+    case T_eq:
+    case T_ne:
+    case T_lt:
+    case T_gt:
+    case T_le:
+    case T_ge:
+      return munch_exp_op_bool(e);
+  }
 
   //emit(AS_Move("mov `d0, `s0", L(r, NULL), L(munch_exp(left), NULL)));
   r = munch_exp(left);
@@ -172,51 +289,16 @@ static Temp_temp munch_exp_op(T_exp e) {
       munch_exp_div(r, munch_exp(right));
       break;
 
-    case T_and:
-    case T_or:
-      printf("and or or not implemented\n");
-      break;
-
     case T_lshift:
+      emit(AS_Move("shl `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      break;
+
     case T_rshift:
+      emit(AS_Move("shr `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      break;
+
     case T_xor:
-      printf("bit math not implemented\n");
-      break;
-
-    case T_eq:
-
-      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
-      emit(AS_Oper(strcat_malloc("je ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
-      break;
-
-    case T_ne:
-
-      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
-      emit(AS_Oper(strcat_malloc("jne ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
-      break;
-
-    case T_lt:
-
-      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
-      emit(AS_Oper(strcat_malloc("jl ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
-      break;
-
-    case T_gt:
-
-      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
-      emit(AS_Oper(strcat_malloc("jg ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
-      break;
-
-    case T_le:
-
-      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
-      emit(AS_Oper(strcat_malloc("jle ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
-      break;
-
-    case T_ge:
-
-      emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
-      emit(AS_Oper(strcat_malloc("jge ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      emit(AS_Move("xor `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
       break;
   }
 
@@ -378,6 +460,7 @@ static void munch_stm_cjump(T_stm s) {
   Temp_label fa = s->u.CJUMP.fa;
 
   g_true_block = tr;
+  g_false_block = fa;
   munch_exp(cond);
 }
 

@@ -6,7 +6,7 @@ let
 
 in
 
-  if x > 10 then
+  if x + 2 > 10 & x < 3 then
     f(x)
   else
     f(x-3)
