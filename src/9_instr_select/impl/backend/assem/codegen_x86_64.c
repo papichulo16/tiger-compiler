@@ -148,6 +148,27 @@ static void munch_exp_div(Temp_temp r, Temp_temp divisor) {
   emit(AS_Move("mov `d0, rax", L(r, NULL), NULL));
 }
 
+// idiv has no immediate form, so a constant divisor needs its own temp
+static Temp_temp munch_div_divisor(char* src, Temp_tempList list) {
+
+  Temp_temp divisor;
+  char* buf;
+
+  if (list) {
+
+    divisor = list->head;
+    goto out;
+  }
+
+  divisor = Temp_newtemp();
+  buf = malloc(CONST_SZ_MAX_BYTES + 16);
+  snprintf(buf, CONST_SZ_MAX_BYTES + 16, "mov `d0, %s", src);
+  emit(AS_Move(buf, L(divisor, NULL), NULL));
+
+out:
+  return divisor;
+}
+
 static void flip_op(T_exp e)  {
 
   T_op op;
@@ -254,9 +275,14 @@ end:
 static Temp_temp munch_exp_op(T_exp e) {
 
   Temp_temp r;
+  Temp_tempList list = NULL;
   T_exp left = e->u.OP.left;
   T_exp right = e->u.OP.right;
   T_op op = e->u.OP.op;
+  char* src;
+  char* oper;
+  char* mnemonic = NULL;
+  size_t oper_sz;
 
   switch (op) {
     case T_and:
@@ -272,37 +298,48 @@ static Temp_temp munch_exp_op(T_exp e) {
 
   //emit(AS_Move("mov `d0, `s0", L(r, NULL), L(munch_exp(left), NULL)));
   r = munch_exp(left);
+  src = munch_operand(right, "`s0", &list);
 
   switch (op) {
 
     case T_plus:
-      emit(AS_Move("add `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      mnemonic = "add";
       break;
 
     case T_minus:
-      emit(AS_Move("sub `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      mnemonic = "sub";
       break;
 
     case T_mul:
-      emit(AS_Move("imul `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      mnemonic = "imul";
       break;
 
     case T_div:
-      munch_exp_div(r, munch_exp(right));
-      break;
+      munch_exp_div(r, munch_div_divisor(src, list));
+      goto out;
 
     case T_lshift:
-      emit(AS_Move("shl `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      mnemonic = "shl";
       break;
 
     case T_rshift:
-      emit(AS_Move("shr `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      mnemonic = "shr";
       break;
 
     case T_xor:
-      emit(AS_Move("xor `d0, `s0", L(r, NULL), L(munch_exp(right), NULL)));
+      mnemonic = "xor";
       break;
   }
+
+  oper_sz = CONST_SZ_MAX_BYTES + 16;
+  oper = malloc(oper_sz);
+  snprintf(oper, oper_sz, "%s `d0, %s", mnemonic, src);
+
+  emit(AS_Move(oper, L(r, NULL), list));
+
+out:
+  if (right->kind == T_CONST)
+    free(src);
 
   return r;
 }
