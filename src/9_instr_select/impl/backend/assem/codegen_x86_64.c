@@ -21,6 +21,8 @@
 extern int WORD_SZ;
 static Temp_temp munch_exp(T_exp e);
 static void munch_stm(T_stm s);
+static Temp_temp munch_exp_mem(T_exp e);
+static void munch_mov_oper_types(T_exp* dst, T_exp* src, char** fstr);
 
 AS_instrList g_instr_list = NULL;
 
@@ -340,6 +342,107 @@ static Temp_temp munch_exp_call(T_exp e) {
   return r;
 }
 
+// OP(PLUS|MINUS|MUL, reg, exp) -> [reg op exp]
+static char* deref_offsets(T_exp* addr) {
+
+  T_exp op = *addr;
+  char* reg = reg_lookup(op->u.OP.left);
+  char* deref;
+  size_t deref_sz;
+  char sign;
+  bool using_tmp = false;
+
+  switch (op->u.OP.op) {
+
+    case T_plus:
+
+      sign = '+';
+      break;
+
+    case T_minus:
+
+      sign = '-';
+      break;
+
+    case T_mul:
+
+      sign = '*';
+      break;
+
+    default:
+
+      reg = NULL;
+      break;
+  }
+
+  if (!reg && op->u.OP.right->kind == T_CONST) {
+
+    reg = malloc(CONST_SZ_MAX_BYTES);
+    snprintf(reg, CONST_SZ_MAX_BYTES, "%d", op->u.OP.right->u.CONST);
+
+  }  else if (!reg) {
+
+    deref = strdup("%s");
+    goto out;
+  }
+
+  deref_sz = strlen(reg) + 6;
+  deref = malloc(deref_sz);
+
+  if (using_tmp) {
+
+    snprintf(deref, deref_sz, "%%s %c %s", sign, reg);
+    *addr = op->u.OP.left;
+    free(reg);
+  }
+  else {
+
+    snprintf(deref, deref_sz, "%s %c %%s", reg, sign);
+    *addr = op->u.OP.right;
+  }
+
+out:
+  return deref;
+}
+
+static char* deref_fstr(char* fstr, T_exp* addr, bool is_dst) {
+
+  char* deref = deref_offsets(addr);
+  size_t tmp_sz = strlen(fstr) + strlen(deref) + 1;
+  char* tmp = malloc(tmp_sz);
+
+  if (is_dst)
+    snprintf(tmp, tmp_sz, fstr, deref, "%s");
+  else
+    snprintf(tmp, tmp_sz, fstr, "%s", deref);
+
+  free(deref);
+
+  return tmp;
+}
+
+static Temp_temp munch_exp_mem(T_exp e) {
+
+  Temp_temp r = Temp_newtemp(); 
+  T_exp dst = NULL;
+  T_exp src = e;
+  char* fstr = "mov %s, %s";
+  char* src_reg;
+  char* instr;
+  Temp_tempList src_list = NULL;
+
+  munch_mov_oper_types(&dst, &src, &fstr);
+
+  src_reg = munch_operand(src, "`s0", &src_list);
+
+  instr = malloc(strlen(fstr) + strlen("`d0") + strlen(src_reg) + 1);
+  sprintf(instr, fstr, "`d0", src_reg);
+
+  emit(AS_Move(instr, L(r, NULL), src_list));
+
+  return r;
+}
+
 static Temp_temp munch_exp(T_exp e) {
 
   Temp_temp r = Temp_newtemp(); 
@@ -355,8 +458,7 @@ static Temp_temp munch_exp(T_exp e) {
       break;
 
     case T_MEM:
-
-      emit(AS_Move("mov `d0, qword [`s0]", L(r, NULL), L(munch_exp(e->u.MEM), NULL)));
+      r = munch_exp_mem(e);
       break;
 
     case T_TEMP:
@@ -384,70 +486,6 @@ static Temp_temp munch_exp(T_exp e) {
 
 out:
   return r;
-}
-
-// OP(PLUS|MINUS|MUL, reg, exp) -> [reg op exp]
-static char* deref_offsets(T_exp* addr) {
-
-  T_exp op = *addr;
-  char* reg = reg_lookup(op->u.OP.left);
-  char* deref;
-  size_t deref_sz;
-  char sign;
-
-  switch (op->u.OP.op) {
-
-    case T_plus:
-
-      sign = '+';
-      break;
-
-    case T_minus:
-
-      sign = '-';
-      break;
-
-    case T_mul:
-
-      sign = '*';
-      break;
-
-    default:
-
-      reg = NULL;
-      break;
-  }
-
-  if (!reg) {
-
-    deref = strdup("%s");
-    goto out;
-  }
-
-  deref_sz = strlen(reg) + 6;
-  deref = malloc(deref_sz);
-
-  snprintf(deref, deref_sz, "%s %c %%s", reg, sign);
-  *addr = op->u.OP.right;
-
-out:
-  return deref;
-}
-
-static char* deref_fstr(char* fstr, T_exp* addr, bool is_dst) {
-
-  char* deref = deref_offsets(addr);
-  size_t tmp_sz = strlen(fstr) + strlen(deref) + 1;
-  char* tmp = malloc(tmp_sz);
-
-  if (is_dst)
-    snprintf(tmp, tmp_sz, fstr, deref, "%s");
-  else
-    snprintf(tmp, tmp_sz, fstr, "%s", deref);
-
-  free(deref);
-
-  return tmp;
 }
 
 static void munch_mov_oper_types(T_exp* dst, T_exp* src, char** fstr) {
