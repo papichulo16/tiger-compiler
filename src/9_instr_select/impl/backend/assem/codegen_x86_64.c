@@ -9,6 +9,11 @@
 #include "assem.h"
 #include "codegen.h"
 
+/* 
+ * the book says to have a backtick (`) for temporary registers
+ * that chapter 11 will take care of
+ * */
+
 // 0x7fffffffffffffff = 9223372036854775807
 // that is 19 digits, 18 for safe measures
 #define CONST_SZ_MAX_BYTES 18
@@ -16,11 +21,6 @@
 extern int WORD_SZ;
 static Temp_temp munch_exp(T_exp e);
 static void munch_stm(T_stm s);
-
-/* 
- * the book says to have a backtick (`) for temporary registers
- * that chapter 11 will take care of
- * */
 
 AS_instrList g_instr_list = NULL;
 
@@ -179,7 +179,7 @@ static void flip_op(T_exp e)  {
 
 static Temp_temp munch_exp_op_bool(T_exp e) {
 
-  Temp_temp r;
+  Temp_temp r = NULL;
   T_exp left = e->u.OP.left;
   T_exp right = e->u.OP.right;
   T_op op = e->u.OP.op;
@@ -386,18 +386,87 @@ out:
   return r;
 }
 
-// improve later to have address offsetting in derefs
+// OP(PLUS|MINUS|MUL, reg, exp) -> [reg op exp]
+static char* deref_offsets(T_exp* addr) {
+
+  T_exp op = *addr;
+  char* reg = reg_lookup(op->u.OP.left);
+  char* deref;
+  size_t deref_sz;
+  char sign;
+
+  switch (op->u.OP.op) {
+
+    case T_plus:
+
+      sign = '+';
+      break;
+
+    case T_minus:
+
+      sign = '-';
+      break;
+
+    case T_mul:
+
+      sign = '*';
+      break;
+
+    default:
+
+      reg = NULL;
+      break;
+  }
+
+  if (!reg) {
+
+    deref = strdup("%s");
+    goto out;
+  }
+
+  deref_sz = strlen(reg) + 6;
+  deref = malloc(deref_sz);
+
+  snprintf(deref, deref_sz, "%s %c %%s", reg, sign);
+  *addr = op->u.OP.right;
+
+out:
+  return deref;
+}
+
+static char* deref_fstr(char* fstr, T_exp* addr, bool is_dst) {
+
+  char* deref = deref_offsets(addr);
+  size_t tmp_sz = strlen(fstr) + strlen(deref) + 1;
+  char* tmp = malloc(tmp_sz);
+
+  if (is_dst)
+    snprintf(tmp, tmp_sz, fstr, deref, "%s");
+  else
+    snprintf(tmp, tmp_sz, fstr, "%s", deref);
+
+  free(deref);
+
+  return tmp;
+}
+
 static void munch_mov_oper_types(T_exp* dst, T_exp* src, char** fstr) {
 
-  if (*dst && (*dst)->kind == T_MEM) {
+  if ((*dst) && (*dst)->kind == T_MEM) {
 
     *fstr = "mov qword [%s], %s";
     *dst = (*dst)->u.MEM;
+
+    if ((*dst)->kind == T_OP)
+      *fstr = deref_fstr(*fstr, dst, true);
   }
   else if (*src && (*src)->kind == T_MEM) {
 
     *fstr = "mov %s, qword [%s]";
     *src = (*src)->u.MEM;
+
+    if ((*src)->kind == T_OP)
+      *fstr = deref_fstr(*fstr, src, false);
   }
 
   // math with a dst same as oper
