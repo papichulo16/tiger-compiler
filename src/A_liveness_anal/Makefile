@@ -4,7 +4,7 @@ BUILD_DIR := build/
 SRCS := $(shell find . -name '*.c')
 OBJS := $(patsubst ./%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
-CFLAGS := -I $(INTF_DIR)
+CFLAGS := -I $(INTF_DIR) -g
 CC := gcc
 
 tiger:  y.tab.o lex.yy.o $(OBJS)

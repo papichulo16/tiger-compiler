@@ -34,3 +34,5 @@ void Temp_dumpMap(FILE *out, Temp_map m);
 
 Temp_map Temp_name(void);
 
+void print_temp_list(Temp_tempList tl);
+

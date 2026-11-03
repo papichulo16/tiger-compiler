@@ -31,7 +31,7 @@ void G_rmEdge(G_node from, G_node to);
 
 /* Show all the nodes and edges in the graph, using the function "showInfo"
     to print the name of each node */
-void G_show(FILE *out, G_nodeList p, void showInfo(void *));
+void G_show(FILE *out, G_nodeList p, void showInfo(void *), bool fg);
 
 /* Get all the successors of node "n" */
 G_nodeList G_succ(G_node n);
@@ -49,7 +49,7 @@ int G_degree(G_node n);
 G_nodeList G_adj(G_node n);
 
 /* Get the "info" associated with node "n" */
-void *G_nodeInfo(G_node n);
+void* G_nodeInfo(G_node n);
 
 /* The type of "tables" mapping graph-nodes to information */
 typedef struct TAB_table_  *G_table;

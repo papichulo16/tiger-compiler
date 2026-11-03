@@ -14,6 +14,7 @@
 #include "graph.h"
 #include "errormsg.h"
 #include "table.h"
+#include "flowgraph.h"
 
 struct G_graph_ {int nodecount;
 		 G_nodeList mynodes, mylast;
@@ -97,13 +98,22 @@ void G_rmEdge(G_node from, G_node to) {
  /**
   * Print a human-readable dump for debugging.
   */
-void G_show(FILE *out, G_nodeList p, void showInfo(void *)) {
+void G_show(FILE *out, G_nodeList p, void showInfo(void *), bool fg) {
   for (; p!=NULL; p=p->tail) {
     G_node n = p->head;
     G_nodeList q;
     assert(n);
     if (showInfo) 
       showInfo(n->info);
+
+    if (fg) {
+
+      printf(" [def]: ");
+      print_temp_list(fg_def(n));
+      printf(" [use]: ");
+      print_temp_list(fg_use(n));
+    }
+
     fprintf(out, " (%d): ", n->mykey); 
     for(q=G_succ(n); q!=NULL; q=q->tail) 
            fprintf(out, "%d ", q->head->mykey);

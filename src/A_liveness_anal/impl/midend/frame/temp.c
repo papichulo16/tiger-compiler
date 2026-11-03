@@ -111,3 +111,12 @@ void Temp_dumpMap(FILE *out, Temp_map m) {
      Temp_dumpMap(out,m->under);
   }
 }
+
+void print_temp_list(Temp_tempList tl) {
+
+  for(;tl;tl = tl->tail)
+    printf("%d ", tl->head->num);
+
+  putchar('\n');
+}
+
