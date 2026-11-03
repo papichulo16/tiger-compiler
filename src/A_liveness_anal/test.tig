@@ -5,6 +5,8 @@ let
   var y := "hello"
   var z := intarr [5] of 67
 
+  function f(a:int) : int = 1
+
 in
 
   if x < 10 then

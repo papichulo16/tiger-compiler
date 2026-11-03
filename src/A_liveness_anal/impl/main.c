@@ -12,6 +12,8 @@
 #include "sem.h"
 #include "assem.h"
 #include "codegen.h"
+#include "graph.h"
+#include "flowgraph.h"
 
 static void comp_err(void) {
 
@@ -35,6 +37,7 @@ static void main_do_proc(FILE* out, Temp_label label, T_stm body) {
 
   T_stmList stms = C_traceSchedule(C_basicBlocks(C_linearize(body)));
   AS_instrList instr_list = codegen(stms);
+  G_graph fun_graph = fg_assem_flowgraph(instr_list);
 
   //fprintf(out, "BEGIN %s\n", Temp_labelstring(label));
   fprintf(out, "\n");
@@ -44,6 +47,7 @@ static void main_do_proc(FILE* out, Temp_label label, T_stm body) {
 
   //fprintf(out, "\nASM\n");
   main_print_instrs(out, instr_list);
+  fg_print(fun_graph);
 
   //fprintf(out, "END %s\n\n", Temp_labelstring(label));
 }

@@ -238,27 +238,27 @@ static Temp_temp munch_exp_op_bool(T_exp e) {
 
   switch(op) {
     case T_eq:
-      emit(AS_Oper(strcat_malloc("je ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      emit(AS_Oper(strcat_malloc("je ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, LL(g_false_block, NULL)))));
       break;
 
     case T_ne:
-      emit(AS_Oper(strcat_malloc("jne ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      emit(AS_Oper(strcat_malloc("jne ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, LL(g_false_block, NULL)))));
       break;
 
     case T_lt:
-      emit(AS_Oper(strcat_malloc("jl ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      emit(AS_Oper(strcat_malloc("jl ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, LL(g_false_block, NULL)))));
       break;
 
     case T_gt:
-      emit(AS_Oper(strcat_malloc("jg ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      emit(AS_Oper(strcat_malloc("jg ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, LL(g_false_block, NULL)))));
       break;
 
     case T_le:
-      emit(AS_Oper(strcat_malloc("jle ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      emit(AS_Oper(strcat_malloc("jle ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, LL(g_false_block, NULL)))));
       break;
 
     case T_ge:
-      emit(AS_Oper(strcat_malloc("jge ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, NULL))));
+      emit(AS_Oper(strcat_malloc("jge ", Temp_labelstring(g_true_block)), NULL, NULL, AS_Targets(LL(g_true_block, LL(g_false_block, NULL)))));
       break;
   }
 
