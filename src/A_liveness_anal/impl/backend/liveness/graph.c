@@ -65,7 +65,36 @@ G_nodeList G_nodes(G_graph g)
 {
   assert(g);
   return g->mynodes;
-} 
+}
+
+static void G_free_node_list(G_nodeList nl) {
+
+  G_nodeList next;
+
+  for (; nl; nl = next) {
+
+    next = nl->tail;
+    free(nl);
+  }
+}
+
+void G_free(G_graph g) {
+
+  G_nodeList nl = g->mynodes;
+  G_nodeList next;
+
+  for (; nl; nl = next) {
+
+    next = nl->tail;
+
+    G_free_node_list(nl->head->succs);
+    G_free_node_list(nl->head->preds);
+    free(nl->head);
+    free(nl);
+  }
+
+  free(g);
+}
 
 /* return true if a is in l list */
 bool G_inNodeList(G_node a, G_nodeList l) {

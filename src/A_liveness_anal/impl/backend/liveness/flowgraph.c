@@ -1,4 +1,5 @@
 #include <stdio.h>
+
 #include "util.h"
 #include "symbol.h"
 #include "temp.h"
@@ -178,6 +179,44 @@ Temp_tempList fg_use(G_node n) {
 
   fg_node_t* info = G_nodeInfo(n);
   return info->use;
+}
+
+AS_instrList fg_get_start_instr(G_node n) {
+
+  fg_node_t* info = G_nodeInfo(n);
+  return info->start;
+}
+
+AS_instrList fg_get_end_instr(G_node n) {
+
+  fg_node_t* info = G_nodeInfo(n);
+  return info->end;
+}
+
+static void fg_free_temp_list(Temp_tempList tl) {
+
+  Temp_tempList next;
+
+  for (; tl; tl = next) {
+
+    next = tl->tail;
+    free(tl);
+  }
+}
+
+static void fg_free_node(fg_node_t* node) {
+
+  fg_free_temp_list(node->def);
+  fg_free_temp_list(node->use);
+  free(node);
+}
+
+void fg_free(G_graph fg) {
+
+  for (G_nodeList nl = G_nodes(fg); nl; nl = nl->tail)
+    fg_free_node(G_nodeInfo(nl->head));
+
+  G_free(fg);
 }
 
 G_graph fg_assem_flowgraph(AS_instrList il) {
