@@ -14,6 +14,7 @@
 #include "codegen.h"
 #include "graph.h"
 #include "flowgraph.h"
+#include "liveness.h"
 
 static void comp_err(void) {
 

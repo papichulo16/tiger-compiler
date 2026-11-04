@@ -24,6 +24,8 @@ struct fg_node {
 
   Temp_tempList def;
   Temp_tempList use;
+  Temp_tempList in;
+  Temp_tempList out;
 };
 
 static G_node fg_find_node(G_graph g, Temp_label l) {
@@ -95,6 +97,8 @@ static void fg_add_node(G_graph g, AS_instrList s, AS_instrList e) {
   node->end = e;
   node->def = fg_init_def(g, s, e);
   node->use = fg_init_use(g, s, e);
+  node->in = NULL;
+  node->out = NULL;
 
   G_Node(g, node);
 }
@@ -167,6 +171,30 @@ static void fg_attach_endpoints(G_graph g) {
 
     fg_node_attach_endpoints(g, nl->head);
   } 
+}
+
+Temp_tempList fg_in(G_node n) {
+
+  fg_node_t* info = G_nodeInfo(n);
+  return info->in;
+}
+
+Temp_tempList fg_out(G_node n) {
+
+  fg_node_t* info = G_nodeInfo(n);
+  return info->out;
+}
+
+void fg_set_in(G_node n, Temp_tempList in) {
+
+  fg_node_t* info = G_nodeInfo(n);
+  info->in = in;
+}
+
+void fg_set_out(G_node n, Temp_tempList out) {
+
+  fg_node_t* info = G_nodeInfo(n);
+  info->out = out;
 }
 
 Temp_tempList fg_def(G_node n) {
@@ -370,11 +398,20 @@ static void show_info(void* info) {
 
   label = Temp_labelstring(node->label);
   printf("%s, end=\"%s\"\n", label, node->end ? node->end->head->u.OPER.assem : "NULL");
+
+  printf(" [def]: ");
+  print_temp_list(node->def);
+  printf(" [use]: ");
+  print_temp_list(node->use);
+  printf(" [in]: ");
+  print_temp_list(node->in);
+  printf(" [out]: ");
+  print_temp_list(node->out);
 }
 
 void fg_print(G_graph fg) {
 
   printf("\n===== fg print: ===== \n");
-  G_show(stdout, G_nodes(fg), show_info, true);
+  G_show(stdout, G_nodes(fg), show_info);
 }
 

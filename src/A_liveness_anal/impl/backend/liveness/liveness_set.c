@@ -15,6 +15,21 @@ bool live_set_contains(Temp_tempList set, Temp_temp val) {
   return found;
 }
 
+bool live_set_subset(Temp_tempList a, Temp_tempList b) {
+
+  bool subset = true;
+
+  for (; a && subset; a = a->tail)
+    subset = live_set_contains(b, a->head);
+
+  return subset;
+}
+
+bool live_set_equal(Temp_tempList a, Temp_tempList b) {
+
+  return live_set_subset(a, b) && live_set_subset(b, a);
+}
+
 void live_set_free(Temp_tempList set) {
 
   Temp_tempList next;
@@ -51,7 +66,12 @@ Temp_tempList live_set_copy(Temp_tempList set) {
 
 Temp_tempList live_set_union(Temp_tempList a, Temp_tempList b) {
 
-  Temp_tempList result = live_set_copy(a);
+  Temp_tempList result;
+
+  if (!a)
+    return live_set_copy(b);
+
+  result = live_set_copy(a);
 
   for (; b; b = b->tail) {
 
@@ -75,3 +95,4 @@ Temp_tempList live_set_sub(Temp_tempList a, Temp_tempList b) {
 
   return result;
 }
+

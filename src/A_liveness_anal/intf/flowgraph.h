@@ -6,6 +6,11 @@
 
 #include "graph.h"
 
+Temp_tempList fg_in(G_node n);
+Temp_tempList fg_out(G_node n);
+void fg_set_in(G_node n, Temp_tempList in);
+void fg_set_out(G_node n, Temp_tempList out);
+
 Temp_tempList fg_def(G_node n);
 Temp_tempList fg_use(G_node n);
 G_graph fg_assem_flowgraph(AS_instrList il);
