@@ -193,6 +193,118 @@ AS_instrList fg_get_end_instr(G_node n) {
   return info->end;
 }
 
+static Temp_tempList fg_copy_temps(Temp_tempList tl) {
+
+  Temp_tempList copy = NULL;
+
+  for (; tl; tl = tl->tail)
+    copy = fg_add_temp(tl->head, copy);
+
+  return copy;
+}
+
+static void fg_init_instr_temps(fg_node_t* node, AS_instr i) {
+
+  node->def = NULL;
+  node->use = NULL;
+
+  switch (i->kind) {
+
+  case I_OPER:
+
+    node->def = fg_copy_temps(i->u.OPER.dst);
+    node->use = fg_copy_temps(i->u.OPER.src);
+    break;
+
+  case I_MOVE:
+
+    node->def = fg_copy_temps(i->u.MOVE.dst);
+    node->use = fg_copy_temps(i->u.MOVE.src);
+    break;
+
+  case I_LABEL:
+
+    break;
+  }
+}
+
+static G_node fg_add_instr_node(G_graph g, AS_instrList cur) {
+
+  fg_node_t* node = malloc(sizeof(fg_node_t));
+
+  node->label = cur->head->kind == I_LABEL ? cur->head->u.LABEL.label : NULL;
+  node->start = cur;
+  node->end = cur;
+  fg_init_instr_temps(node, cur->head);
+
+  return G_Node(g, node);
+}
+
+static bool fg_instr_is_jump(AS_instr i) {
+
+  return i->kind == I_OPER && i->u.OPER.jumps;
+}
+
+static void fg_add_instrs(G_graph g, AS_instrList il) {
+
+  G_node prev = NULL;
+  G_node n;
+
+  for (AS_instrList cur = il; cur; cur = cur->tail) {
+
+    n = fg_add_instr_node(g, cur);
+
+    if (prev && !fg_instr_is_jump(fg_get_start_instr(prev)->head))
+      G_addEdge(prev, n);
+
+    prev = n;
+  }
+}
+
+static void fg_node_attach_jumps(G_graph g, G_node n) {
+
+  AS_instr i = fg_get_start_instr(n)->head;
+  G_node to;
+
+  if (!fg_instr_is_jump(i))
+    return;
+
+  for (Temp_labelList l = i->u.OPER.jumps->labels; l; l = l->tail) {
+
+    if (to = fg_find_node(g, l->head), to)
+      G_addEdge(n, to);
+  }
+}
+
+static void fg_attach_jumps(G_graph g) {
+
+  for (G_nodeList nl = G_nodes(g); nl; nl = nl->tail)
+    fg_node_attach_jumps(g, nl->head);
+}
+
+AS_instrList fg_copy_node_instrs(G_node n) {
+
+  fg_node_t* info = G_nodeInfo(n);
+  AS_instrList head = NULL;
+  AS_instrList tail = NULL;
+  AS_instrList cell;
+  bool done = false;
+
+  for (AS_instrList cur = info->start; cur && !done; cur = cur->tail) {
+
+    cell = AS_InstrList(cur->head, NULL);
+
+    if (tail)
+      tail = tail->tail = cell;
+    else
+      head = tail = cell;
+
+    done = cur == info->end;
+  }
+
+  return head;
+}
+
 static void fg_free_temp_list(Temp_tempList tl) {
 
   Temp_tempList next;
@@ -229,6 +341,16 @@ G_graph fg_assem_flowgraph(AS_instrList il) {
   return graph;
 }
 
+G_graph fg_assem_instr_flowgraph(AS_instrList il) {
+
+  G_graph graph = G_Graph();
+
+  fg_add_instrs(graph, il);
+  fg_attach_jumps(graph);
+
+  return graph;
+}
+
 static void show_info(void* info) {
 
   fg_node_t* node = (fg_node_t *) info;
@@ -242,7 +364,7 @@ static void show_info(void* info) {
 
   if (node->start->head->kind != I_LABEL) {
 
-    printf("node start not a label??\n");
+    printf("instr=\"%s\"\n", node->start->head->u.OPER.assem);
     return;
   }
 

@@ -39,6 +39,8 @@ static void main_do_proc(FILE* out, Temp_label label, T_stm body) {
   AS_instrList instr_list = codegen(stms);
   G_graph fun_graph = fg_assem_flowgraph(instr_list);
 
+  live_liveness(fun_graph);
+
   //fprintf(out, "BEGIN %s\n", Temp_labelstring(label));
   fprintf(out, "\n");
 
