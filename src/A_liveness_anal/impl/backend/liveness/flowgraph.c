@@ -28,6 +28,26 @@ struct fg_node {
   Temp_tempList out;
 };
 
+int node_list_sz(G_nodeList nl) {
+
+  int c = 0;
+
+  for (;nl; nl = nl->tail)
+    c += 1;
+
+  return c;
+}
+
+int instr_list_sz_to(AS_instrList nl, AS_instrList end) {
+
+  int c = 0;
+
+  for (;nl && nl != end; nl = nl->tail)
+    c += 1;
+
+  return c;
+}
+
 static G_node fg_find_node(G_graph g, Temp_label l) {
 
   G_nodeList nl = G_nodes(g);
@@ -62,14 +82,27 @@ static Temp_tempList fg_add_temp(Temp_temp t, Temp_tempList tl) {
   return tl;
 }
 
+static Temp_tempList fg_add_temp_list(Temp_tempList t, Temp_tempList tl) {
+
+  if (t)
+    return fg_add_temp(t->head, fg_add_temp_list(t->tail, tl));
+
+  return tl;
+}
+
 static Temp_tempList fg_init_def(G_graph g, AS_instrList s, AS_instrList e) {
 
   if (s && s->head && s->head->kind == I_MOVE &&
-      s->head->u.MOVE.dst)
-    return fg_add_temp(s->head->u.MOVE.dst->head,
-        fg_init_def(g, s->tail, e));
+      s->head->u.MOVE.dst) {
 
-  if (s)
+    if (s == e)
+      return fg_add_temp_list(s->head->u.MOVE.dst, NULL);
+
+    return fg_add_temp_list(s->head->u.MOVE.dst,
+        fg_init_def(g, s->tail, e));
+  }
+
+  if (s && s != e)
     return fg_init_def(g, s->tail, e);
 
   return NULL;
@@ -78,11 +111,16 @@ static Temp_tempList fg_init_def(G_graph g, AS_instrList s, AS_instrList e) {
 static Temp_tempList fg_init_use(G_graph g, AS_instrList s, AS_instrList e) {
 
   if (s && s->head && s->head->kind == I_MOVE &&
-      s->head->u.MOVE.src)
-    return fg_add_temp(s->head->u.MOVE.src->head,
-        fg_init_use(g, s->tail, e));
+      s->head->u.MOVE.src) {
 
-  if (s)
+    if (s == e)
+      return fg_add_temp_list(s->head->u.MOVE.src, NULL);
+
+    return fg_add_temp_list(s->head->u.MOVE.src,
+        fg_init_use(g, s->tail, e));
+  }
+
+  if (s && s != e)
     return fg_init_use(g, s->tail, e);
 
   return NULL;
@@ -397,7 +435,7 @@ static void show_info(void* info) {
   }
 
   label = Temp_labelstring(node->label);
-  printf("%s, end=\"%s\"\n", label, node->end ? node->end->head->u.OPER.assem : "NULL");
+  printf("%s, end=\"%s\", sz=%d\n", label, node->end ? node->end->head->u.OPER.assem : "NULL", instr_list_sz_to(node->start, node->end));
 
   printf(" [def]: ");
   print_temp_list(node->def);

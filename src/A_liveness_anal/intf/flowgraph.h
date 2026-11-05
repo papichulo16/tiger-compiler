@@ -6,6 +6,9 @@
 
 #include "graph.h"
 
+int node_list_sz(G_nodeList nl);
+int instr_list_sz_to(AS_instrList nl, AS_instrList end);
+
 Temp_tempList fg_in(G_node n);
 Temp_tempList fg_out(G_node n);
 void fg_set_in(G_node n, Temp_tempList in);

@@ -234,7 +234,7 @@ static Temp_temp munch_exp_op_bool(T_exp e) {
   }
 
   r = munch_exp(left);
-  emit(AS_Oper("cmp `d0, `s0", L(r, NULL), L(munch_exp(right), NULL), NULL));
+  emit(AS_Move("cmp `s0, `s1", NULL, L(r, L(munch_exp(right), NULL))));
 
   switch(op) {
     case T_eq:

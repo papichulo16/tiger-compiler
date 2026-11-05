@@ -17,15 +17,7 @@
 #include "liveness.h"
 #include "liveness_set.h"
 
-static int node_list_sz(G_nodeList nl) {
 
-  int c = 0;
-
-  for (;nl; nl = nl->tail)
-    c += 1;
-
-  return c;
-}
 
 /*
  * the book's algorithm:
