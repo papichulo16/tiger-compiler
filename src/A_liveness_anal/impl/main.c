@@ -34,13 +34,17 @@ static void main_print_instrs(FILE* out, AS_instrList instrs) {
   }
 }
 
+static void main_show_temp(void* info) {
+
+  printf("t%s", Temp_look(Temp_name(), info));
+}
+
 static void main_do_proc(FILE* out, Temp_label label, T_stm body) {
 
   T_stmList stms = C_traceSchedule(C_basicBlocks(C_linearize(body)));
   AS_instrList instr_list = codegen(stms);
   G_graph fun_graph = fg_assem_flowgraph(instr_list);
-
-  live_liveness(fun_graph);
+  struct live_graph* lg = live_liveness(fun_graph);
 
   //fprintf(out, "BEGIN %s\n", Temp_labelstring(label));
   fprintf(out, "\n");
@@ -51,6 +55,9 @@ static void main_do_proc(FILE* out, Temp_label label, T_stm body) {
   //fprintf(out, "\nASM\n");
   main_print_instrs(out, instr_list);
   fg_print(fun_graph);
+
+  printf("\n===== interference graph: =====\n");
+  G_show(stdout, G_nodes(lg->graph), main_show_temp);
 
   //fprintf(out, "END %s\n\n", Temp_labelstring(label));
 }

@@ -12,6 +12,7 @@
 #include "table.h"
 #include "graph.h"
 #include "flowgraph.h"
+#include "liveness_set.h"
 
 typedef struct fg_node fg_node_t;
 
@@ -92,7 +93,7 @@ static Temp_tempList fg_add_temp_list(Temp_tempList t, Temp_tempList tl) {
 
 static Temp_tempList fg_init_def(G_graph g, AS_instrList s, AS_instrList e) {
 
-  if (s && s->head && s->head->kind == I_MOVE &&
+  if (s && s->head && (s->head->kind == I_MOVE || s->head->kind == I_OPER) &&
       s->head->u.MOVE.dst) {
 
     if (s == e)
@@ -110,14 +111,17 @@ static Temp_tempList fg_init_def(G_graph g, AS_instrList s, AS_instrList e) {
 
 static Temp_tempList fg_init_use(G_graph g, AS_instrList s, AS_instrList e) {
 
-  if (s && s->head && s->head->kind == I_MOVE &&
-      s->head->u.MOVE.src) {
+  Temp_tempList rest;
+  Temp_tempList live;
 
-    if (s == e)
-      return fg_add_temp_list(s->head->u.MOVE.src, NULL);
+  if (s && s->head && (s->head->kind == I_MOVE || s->head->kind == I_OPER)) {
 
-    return fg_add_temp_list(s->head->u.MOVE.src,
-        fg_init_use(g, s->tail, e));
+    rest = s == e ? NULL : fg_init_use(g, s->tail, e);
+
+    live = live_set_sub(rest, s->head->u.MOVE.dst);
+    live_set_free(rest);
+
+    return fg_add_temp_list(s->head->u.MOVE.src, live);
   }
 
   if (s && s != e)
